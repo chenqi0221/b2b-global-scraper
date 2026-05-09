@@ -1,0 +1,25 @@
+# Build and distribution files
+dist/
+build/
+*.exe
+*.zip
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# Local data files (optional)
+# date_data/
+# Downloads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
