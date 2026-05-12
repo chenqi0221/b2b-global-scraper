@@ -15,7 +15,11 @@ def get_google_auth():
     token_path = os.path.abspath("token.json")
 
     if not os.path.exists(client_secret_path):
-        raise FileNotFoundError("根目录找不到 client_secret.json")
+        raise FileNotFoundError(
+            "根目录找不到 client_secret.json\n"
+            "请从 Google Cloud Console 下载 OAuth 2.0 凭证文件并重命名为 client_secret.json\n"
+            "文件路径: " + client_secret_path
+        )
 
     from google_auth_oauthlib.flow import InstalledAppFlow
     from google.auth.transport.requests import Request, AuthorizedSession

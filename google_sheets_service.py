@@ -332,8 +332,10 @@ async def upload_to_google_sheets(
         existing_values = main_worksheet.get_all_values()
         if existing_values and len(existing_values) > 1:
             final_total_df = pd.DataFrame(existing_values[1:], columns=existing_values[0])
-            return True, final_total_df
-        return True, final_df
+            # 返回总表数据、新增数据、新增数量
+            return True, final_total_df, new_data_df
+        # 返回总表数据、新增数据、新增数量
+        return True, final_df, new_data_df
 
     except Exception as e:
         error_msg = str(e)
