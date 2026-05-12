@@ -1,11 +1,11 @@
-"""获客引擎页面"""
+"""获客引擎页面 - Win11毛玻璃风格"""
 
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
 from gui.pages.base_page import BasePage
-from gui.theme import FONTS, SPACING
+from gui.theme import FONTS, SPACING, TEXT_COLORS, BACKGROUND_COLORS
 
 
 class EnginePage(BasePage):
@@ -14,8 +14,8 @@ class EnginePage(BasePage):
     def _setup_ui(self):
         """设置界面"""
         # --- 1. 状态卡片 (固定在顶部) ---
-        cards_frame = tb.Frame(self, style='custom.TFrame')
-        cards_frame.pack(fill=tk.X, padx=10, pady=10)
+        cards_frame = tb.Frame(self)
+        cards_frame.pack(fill=tk.X, padx=15, pady=15)
 
         self.total_scraped_card = self._create_status_card(cards_frame, "今日已抓取", "0")
         self.email_found_card = self._create_status_card(cards_frame, "包含邮箱数", "0")
@@ -27,7 +27,7 @@ class EnginePage(BasePage):
 
         # --- 2. 主面板 (左右分栏 Panedwindow) ---
         self.main_pane = tb.Panedwindow(self, orient=tk.HORIZONTAL)
-        self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.main_pane.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
 
         # --- 3. 左侧面板 (关键词配置) ---
         kw_frame = tb.LabelFrame(self.main_pane, text="关键词配置")

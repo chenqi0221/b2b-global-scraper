@@ -35,11 +35,15 @@ class ScraperApp:
     
     def __init__(self, root: tb.Window):
         self.root = root
-        self.root.title("LANGDENG B2B GLOBAL - 获客引擎")
+        self.root.title("B2B Global 获客系统")
         self.root.geometry("1200x800")
+        self.root.minsize(800, 600)
         
         # 窗口关闭事件
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        
+        # 绑定窗口大小变化事件
+        self.root.bind("<Configure>", self._on_window_resize)
         
         # 初始化服务
         self.scraper_controller = ScraperController()
@@ -738,6 +742,17 @@ class ScraperApp:
     def _setup_tooltips(self):
         """设置工具提示"""
         setup_tooltips(self.root)
+    
+    def _on_window_resize(self, event=None):
+        """窗口大小变化时调整布局"""
+        if event and event.widget == self.root:
+            width = self.root.winfo_width()
+            
+            # 小于900px时自动折叠侧边栏
+            if width < 900 and hasattr(self.sidebar, 'is_expanded') and self.sidebar.is_expanded:
+                self.sidebar.collapse()
+            elif width >= 1100 and hasattr(self.sidebar, 'is_expanded') and not self.sidebar.is_expanded:
+                self.sidebar.expand()
     
     def run(self):
         """运行应用"""
