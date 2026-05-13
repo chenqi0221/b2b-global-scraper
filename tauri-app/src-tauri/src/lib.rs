@@ -69,7 +69,7 @@ fn reveal_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         if p.is_file() {
-            let arg = format!("/select,{}", p.display());
+            let arg = format!("/select, {}", p.display());
             Command::new("explorer")
                 .arg(arg)
                 .spawn()
@@ -122,8 +122,8 @@ fn spawn_python_backend(root: &Path) -> Option<Child> {
 
     #[cfg(windows)]
     let attempts: &[(&str, &[&str])] = &[
-        ("py", &["-3", "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8756"]),
         ("python", &uvicorn_args),
+        ("py", &["-3", "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8756"]),
     ];
 
     #[cfg(not(windows))]
@@ -134,7 +134,13 @@ fn spawn_python_backend(root: &Path) -> Option<Child> {
 
     for (prog, args) in attempts {
         let mut cmd = Command::new(prog);
-        cmd.args(*args).current_dir(root).stdout(Stdio::null()).stderr(Stdio::null());
+        cmd.args(*args).current_dir(root);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
         match cmd.spawn() {
             Ok(mut ch) => {
                 log::info!("python backend spawned via {prog}, waiting for 127.0.0.1:8756 ...");
