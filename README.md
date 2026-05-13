@@ -58,28 +58,46 @@
 ├── tauri-app/              # Tauri 桌面应用（React 前端 + Rust 后端）
 │   ├── src/                # React 源码
 │   ├── src-tauri/          # Rust 源码
-│   └── package.json
+│   ├── README.md           # 前端子项目说明
+│   └── ARCHITECTURE.md     # 前端架构蓝图
 │
 ├── backend/                # Python FastAPI 后端
 │   ├── main.py             # 入口
 │   ├── routers/            # API 路由
 │   ├── schemas/            # Pydantic 模型
-│   └── services/           # 业务服务
+│   ├── services/           # 业务服务
+│   └── requirements.txt    # 后端依赖
 │
 ├── core/                   # Python 核心模块
 │   ├── scraper_controller.py
 │   ├── keyword_service.py
 │   └── sync_service.py
 │
-├── third_party/
-│   └── whatsapp-service/   # WhatsApp Node 服务
+├── scraper/                # 抓取引擎
+│   ├── google_maps.py
+│   ├── email_extractor.py
+│   └── file_export.py
 │
 ├── gui/                    # 旧版 tkinter GUI（兼容保留）
+│   ├── app.py
+│   ├── components/
+│   ├── pages/
+│   └── effects/
+│
+├── models/                 # Pydantic 数据模型
+├── utils/                  # 工具函数
+├── third_party/            # 第三方服务
+│   └── whatsapp-service/   # WhatsApp Node 服务
+│
 ├── tests/                  # 测试脚本
-├── scripts/                # 辅助脚本
 ├── docs/                   # 文档
+│   ├── api/
+│   └── plans/
 ├── Downloads/              # 抓取结果输出
-└── requirements.txt        # Python 依赖
+├── backups/                # 历史备份（空目录占位）
+├── requirements.txt        # Python 依赖
+├── main.py                 # tkinter GUI 入口
+└── README.md               # 本文件
 ```
 
 ---
@@ -89,8 +107,8 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/chenqi0221/google-maps-scraper.git
-cd google-maps-scraper
+git clone https://github.com/chenqi0221/b2b-global-scraper.git
+cd b2b-global-scraper
 ```
 
 ### 2. 安装 Python 依赖
@@ -214,9 +232,10 @@ B2B_SPAWN_WHATSAPP=1
 - Rust 后端自动拉起 Python，带端口健康检测（15秒超时）
 - 修复 `py` launcher 启动失败时自动回退到 `python` 直接启动
 - 保留原有 tkinter 版本作为兼容入口
+- 清理历史冗余文件和旧版备份代码
 
 ---
 
-## 许可证
+## License
 
 MIT
