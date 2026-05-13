@@ -26,6 +26,18 @@ fn looks_like_repo_root(p: &Path) -> bool {
     p.join("backend").join("main.py").is_file()
 }
 
+/// 从 exe 路径向上查找，直到找到包含 backend/main.py 的目录。
+fn repo_root_from_exe(exe: &Path) -> Option<PathBuf> {
+    let mut dir = exe.parent()?;
+    for _ in 0..6 {
+        if looks_like_repo_root(dir) {
+            return Some(dir.to_path_buf());
+        }
+        dir = dir.parent()?;
+    }
+    None
+}
+
 /// 仓库根：优先 `B2B_REPO_ROOT`；否则从 `current_exe()` 推断；最后回退编译期路径。
 fn repo_root() -> PathBuf {
     if let Ok(raw) = std::env::var("B2B_REPO_ROOT") {
@@ -40,27 +52,8 @@ fn repo_root() -> PathBuf {
         return fallback_repo_root_from_manifest();
     };
 
-    if let Some(bin_dir) = exe.parent() {
-        let name = bin_dir.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if name.eq_ignore_ascii_case("release") || name.eq_ignore_ascii_case("debug") {
-            let mut dir = bin_dir.to_path_buf();
-            for _ in 0..4 {
-                if let Some(p) = dir.parent() {
-                    dir = p.to_path_buf();
-                } else {
-                    return fallback_repo_root_from_manifest();
-                }
-            }
-            if looks_like_repo_root(&dir) {
-                return dir;
-            }
-        }
-    }
-
-    if let Some(parent) = exe.parent() {
-        if looks_like_repo_root(parent) {
-            return parent.to_path_buf();
-        }
+    if let Some(root) = repo_root_from_exe(&exe) {
+        return root;
     }
 
     log::warn!("repo_root: using compile-time manifest parent (wrong if app was moved)");
