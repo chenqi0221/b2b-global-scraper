@@ -1,13 +1,33 @@
 import os
-from data import AI_KEYWORD_PROMPT
+from pathlib import Path
+from data import AI_KEYWORD_PROMPT as _DEFAULT_AI_KEYWORD_PROMPT
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# 火山方舟 API 配置
-ARK_API_KEY = "3dbfbad3-4a29-4343-91b5-8e82ef5cf705"  # 直接使用提供的API密钥
-ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
-ARK_MODEL_ENDPOINT = "ep-20260327111844-sgg48"  # 使用提供的新模型端点
+_PROMPT_OVERRIDE = Path(__file__).resolve().parent / "user_ai_prompt.txt"
+
+
+def get_effective_ai_keyword_prompt() -> str:
+    if _PROMPT_OVERRIDE.is_file():
+        try:
+            t = _PROMPT_OVERRIDE.read_text(encoding="utf-8").strip()
+            if t:
+                return t
+        except OSError:
+            pass
+    return _DEFAULT_AI_KEYWORD_PROMPT
+
+# 火山方舟 / 豆包（与 `.env` 中 DOUBAO_* 对齐；勿在代码中硬编码密钥）
+ARK_API_KEY = (os.getenv("DOUBAO_API_KEY") or os.getenv("ARK_API_KEY") or "").strip()
+ARK_BASE_URL = (
+    (os.getenv("DOUBAO_BASE_URL") or os.getenv("ARK_BASE_URL") or "https://ark.cn-beijing.volces.com/api/v3")
+    .strip()
+    .rstrip("/")
+)
+ARK_MODEL_ENDPOINT = (
+    os.getenv("DOUBAO_MODEL_ENDPOINT") or os.getenv("ARK_MODEL_ENDPOINT") or ""
+).strip()
 
 def get_keywords_from_ai(seed_word, num=7):
     """
@@ -141,14 +161,14 @@ def get_keywords_from_ai(seed_word, num=7):
             return fallback_keywords
 
         # 使用完整的AI_KEYWORD_PROMPT模板
-        prompt = AI_KEYWORD_PROMPT.replace("[N]", str(num)) + f"\n\nSeed Product (Chinese): {seed_word}"
+        prompt = get_effective_ai_keyword_prompt().replace("[N]", str(num)) + f"\n\nSeed Product (Chinese): {seed_word}"
         
         print(f"[DEBUG] 发送 AI 请求: {prompt}")
         
         # 使用requests直接调用火山方舟API，添加重试机制
         import requests
         import json
-        max_retries = 2
+        max_retries = 3
         retry_count = 0
         content = ""
         
@@ -173,7 +193,9 @@ def get_keywords_from_ai(seed_word, num=7):
                 }
                 
                 # 发送请求
-                response = requests.post(url, headers=headers, json=data, timeout=30)  # 增加超时时间到30秒
+                response = requests.post(
+                    url, headers=headers, json=data, timeout=(10, 45)
+                )  # (connect, read)
                 response.raise_for_status()
                 
                 # 解析响应

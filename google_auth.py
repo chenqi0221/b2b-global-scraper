@@ -1,8 +1,10 @@
-import os
+from pathlib import Path
 
 import requests
 
 from config import HTTP_PROXY
+
+_REPO = Path(__file__).resolve().parent
 
 
 def get_google_auth():
@@ -11,10 +13,10 @@ def get_google_auth():
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive",
     ]
-    client_secret_path = os.path.abspath("client_secret.json")
-    token_path = os.path.abspath("token.json")
+    client_secret_path = str(_REPO / "client_secret.json")
+    token_path = str(_REPO / "token.json")
 
-    if not os.path.exists(client_secret_path):
+    if not Path(client_secret_path).exists():
         raise FileNotFoundError(
             "根目录找不到 client_secret.json\n"
             "请从 Google Cloud Console 下载 OAuth 2.0 凭证文件并重命名为 client_secret.json\n"
@@ -32,7 +34,7 @@ def get_google_auth():
     google_request = Request(session=session)
 
     creds = None
-    if os.path.exists(token_path):
+    if Path(token_path).is_file():
         try:
             creds = Credentials.from_authorized_user_file(token_path, scopes)
         except Exception:
@@ -53,7 +55,7 @@ def get_google_auth():
             flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, scopes)
             creds = flow.run_local_server(port=0)
 
-        with open(token_path, "w") as token:
+        with open(token_path, "w", encoding="utf-8") as token:
             token.write(creds.to_json())
 
     # 返回凭据和带代理的授权 Session
