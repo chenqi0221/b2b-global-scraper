@@ -1,7 +1,8 @@
 .app-root {
   display: flex;
-  min-height: 100dvh;
-  min-height: 100vh;
+  height: 100dvh;
+  height: 100vh;
+  overflow: hidden;
   color: var(--text);
   background: var(--bg);
   position: relative;
@@ -64,6 +65,7 @@
   gap: 1.25rem;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: var(--shadow-md);
+  overflow-y: auto;
 }
 
 .app-brand-title {
@@ -126,6 +128,7 @@
   margin-inline: auto;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 /* —— 平板：侧栏略窄 —— */
