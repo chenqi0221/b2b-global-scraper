@@ -3,6 +3,7 @@ dist/
 build/
 *.exe
 *.zip
+*.spec
 
 # Python cache
 __pycache__/
@@ -12,19 +13,21 @@ __pycache__/
 # Logs
 *.log
 
-# Local data files (optional)
-# date_data/
-# Downloads/
+# Local data files
+Downloads/
+date_data/
+new_records/
 
 # IDE
 .vscode/
 .idea/
+.trae/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Local AI prompt override (optional)
+# Local AI prompt override
 user_ai_prompt.txt
 
 # Google OAuth — never commit
@@ -34,3 +37,10 @@ token.json
 # Vendored WhatsApp (session data must never be committed)
 third_party/whatsapp-service/.wwebjs_auth*/
 third_party/whatsapp-service/.wwebjs_cache*/
+
+# Environment files
+.env
+
+# Portable builds
+B2B-Global-Portable/
+portable/
