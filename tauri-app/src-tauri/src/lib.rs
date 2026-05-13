@@ -7,10 +7,10 @@ use std::time::Duration;
 
 use tauri::Manager;
 
-/// 子进程中的 Python FastAPI（开发期由 Tauri 拉起；生产换 PyInstaller sidecar）。
+/// 子进程中的 Python 后端（开发期 Python；生产期 PyInstaller sidecar exe）。release 模式优先尝试 bundle 里的 backend.exe。
 pub struct BackendChild(pub Mutex<Option<Child>>);
 
-/// WhatsApp Node（`third_party/whatsapp-service/web.js`），可由用户或 `B2B_SPAWN_WHATSAPP=1` 拉起。
+/// WhatsApp Node
 pub struct WhatsappChild(pub Mutex<Option<Child>>);
 
 fn fallback_repo_root_from_manifest() -> PathBuf {
@@ -24,6 +24,26 @@ fn fallback_repo_root_from_manifest() -> PathBuf {
 
 fn looks_like_repo_root(p: &Path) -> bool {
     p.join("backend").join("main.py").is_file()
+}
+
+/// release 模式下，backend.exe 会作为 externalBin 打包到 app.exe 同目录。
+/// Tauri v2 可能保留或不保留目标三元组后缀，两个名字都尝试。
+fn bundled_backend_exe() -> Option<PathBuf> {
+    let Ok(exe) = std::env::current_exe() else {
+        return None;
+    };
+    let dir = exe.parent().unwrap_or(Path::new("."));
+    for name in &[
+        "backend.exe",
+        "backend-x86_64-pc-windows-msvc.exe",
+    ] {
+        let bundled = dir.join(name);
+        if bundled.is_file() {
+            log::info!("found bundled backend: {}", bundled.display());
+            return Some(bundled);
+        }
+    }
+    None
 }
 
 /// 从 exe 路径向上查找，直到找到包含 backend/main.py 的目录。
@@ -109,6 +129,62 @@ fn wait_for_backend(addr: &str, max_secs: u64) -> bool {
     false
 }
 
+#[cfg(windows)]
+fn kill_port_8756() {
+    use std::process::Command as StdCommand;
+    let out = StdCommand::new("cmd")
+        .args(["/C", "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :8756') do taskkill /F /PID %a 2>nul"])
+        .output();
+    match out {
+        Ok(o) if !o.status.success() => {
+            log::info!("port 8756 cleanup: {}", String::from_utf8_lossy(&o.stdout).trim());
+        }
+        _ => {}
+    }
+}
+
+fn spawn_bundled_backend() -> Option<Child> {
+    let exe = bundled_backend_exe()?;
+    let dir = exe.parent();
+
+    for attempt in 0..2 {
+        if attempt > 0 {
+            log::warn!("bundled backend attempt {} retrying after 3s...", attempt + 1);
+            thread::sleep(Duration::from_secs(3));
+        }
+
+        #[cfg(windows)]
+        kill_port_8756();
+
+        let mut cmd = Command::new(&exe);
+        if let Some(dir) = dir {
+            cmd.current_dir(dir);
+            cmd.env("B2B_REPO_ROOT", dir);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        match cmd.spawn() {
+            Ok(mut ch) => {
+                log::info!("bundled backend.exe spawned (attempt {}), waiting for 127.0.0.1:8756 ...", attempt + 1);
+                if wait_for_backend("127.0.0.1:8756", 45) {
+                    return Some(ch);
+                }
+                log::warn!("bundled backend port 8756 not ready in 45s");
+                let _ = ch.kill();
+                #[cfg(windows)]
+                kill_port_8756();
+            }
+            Err(e) => log::warn!("bundled backend spawn failed: {e}"),
+        }
+    }
+    log::error!("bundled backend failed after 2 attempts");
+    None
+}
+
 fn spawn_python_backend(root: &Path) -> Option<Child> {
     let uvicorn_args = [
         "-m",
@@ -144,10 +220,10 @@ fn spawn_python_backend(root: &Path) -> Option<Child> {
         match cmd.spawn() {
             Ok(mut ch) => {
                 log::info!("python backend spawned via {prog}, waiting for 127.0.0.1:8756 ...");
-                if wait_for_backend("127.0.0.1:8756", 15) {
+                if wait_for_backend("127.0.0.1:8756", 45) {
                     return Some(ch);
                 }
-                log::warn!("backend spawned via {prog} but port 8756 not ready in 15s; killing and trying next");
+                log::warn!("backend spawned via {prog} but port 8756 not ready in 45s; killing and trying next");
                 let _ = ch.kill();
             }
             Err(e) => log::warn!("backend spawn try {prog} failed: {e}"),
@@ -245,14 +321,17 @@ pub fn run() {
                 )?;
             }
 
-            let root = repo_root();
-            let py_child = spawn_python_backend(&root);
+            let py_child = spawn_bundled_backend().or_else(|| {
+                let root = repo_root();
+                spawn_python_backend(&root)
+            });
+
             if py_child.is_none() {
                 log::error!("python backend failed to start; app will run but API calls will fail");
             }
             app.manage(BackendChild(Mutex::new(py_child)));
 
-            let wa_child = maybe_spawn_whatsapp(&root);
+            let wa_child = maybe_spawn_whatsapp(&repo_root());
             app.manage(WhatsappChild(Mutex::new(wa_child)));
 
             Ok(())

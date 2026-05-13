@@ -1,110 +1,171 @@
 # B2B Global 获客系统（Tauri + React）
 
-## 开发方式
-
-- **`npm run web`** 或 **`npm run dev`**：只启动 Vite，在**系统浏览器**里调试前端（**不会出现** Tauri 桌面窗口）。
-- **`npm run desktop`** 或 **`npm run tauri:dev`**：启动 **Tauri 桌面窗口**（内嵌 WebView），与正式桌面体验一致；`tauri.conf.json` 里已把默认窗口设为较大尺寸。
-
-后端 API 需按项目主 README 另行启动。
-
-### 桌面正式包：状态同步失败 / Failed to fetch
-
-1. **CORS**：生产 WebView 源常为 `https://tauri.localhost:<随机端口>`，后端已用 `allow_origin_regex` 放行；请**重新打包**并运行**新** `app.exe`（并确保本机跑的是**更新后的** `backend/main.py`）。
-2. **Python 未拉起**：资源管理器双击 exe 时 **PATH 可能不含 `python`**。壳层已优先尝试 Windows **`py -3`**，再回退 **`python`**；请安装 Python / Launcher，并在仓库根装好依赖（见下）。
-3. **仓库根路径**：API 进程需在含 `backend/main.py` 的目录下启动。已按 `app.exe` 位置自动推断 `…/tauri-app/src-tauri/target/release` → 仓库根；若仅拷贝 exe 到别处，请设置环境变量 **`B2B_REPO_ROOT`** 指向完整仓库根后再启动。
-4. **依赖**：在仓库根执行 `pip install -r backend/requirements.txt`（或你的虚拟环境内）。
-
-### 一键执行（本机）
-
-在仓库根目录 **CMD** 中执行（勿在 PowerShell 里用 `call` 混用路径时出错，可直接双击或在 CMD 里运行）：
-
-```bat
-scripts\run_all.bat
-```
-
-顺序：`pytest` → `tauri-app` 下 `npm run build` → `cargo check` → `npm run package`（NSIS 安装包）。  
-若只需验证、不打包：`scripts\smoke_test.bat`。
-
-### 打包（Windows 桌面安装包）
-
-仓库根执行 `scripts\package_tauri.bat`，或在 `tauri-app` 目录执行 `npm run package`（内部为 `npm run build` + `tauri build`，默认产出 **NSIS 安装程序**，在 `src-tauri\target\release\bundle\nsis\`；可执行文件在 `target\release\app.exe`）。
-
-PowerShell 切换目录请用 `cd E:\路径\tauri-app`，不要使用 cmd 的 `cd /d`（PowerShell 会报错）。
-
-如需 **MSI**（WiX），请把仓库放在仅 ASCII 的路径下并把 `tauri.conf.json` 里 `bundle.targets` 改为包含 `"msi"`；中文路径下 WiX `light.exe` 常失败。
+基于 Tauri v2 + React 19 + TypeScript 的桌面端获客系统前端壳层，配套 Python FastAPI 后端提供 Google Maps 商家数据采集、AI 关键词生成、Google Sheets 同步、WhatsApp 消息服务。
 
 ---
 
-# React + TypeScript + Vite
+## 技术栈
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+| 层级 | 技术 |
+|------|------|
+| 桌面壳层 | Tauri v2 (Rust) |
+| 前端框架 | React 19 + TypeScript |
+| 构建工具 | Vite 8 |
+| 路由 | React Router v7 (HashRouter) |
+| 状态管理 | Zustand |
+| 样式 | Tailwind CSS v4 + 原生 CSS |
+| 表格 | TanStack React Table |
+| 图标 | Lucide React |
+| 后端通信 | Fetch API → Python FastAPI |
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 项目结构
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+tauri-app/
+├── public/                     # 静态资源
+│   └── favicon.svg
+├── src/
+│   ├── main.tsx                # 应用入口 (HashRouter + StrictMode)
+│   ├── App.tsx                 # 路由配置
+│   ├── index.css               # 全局样式 / CSS 变量 / 深色模式
+│   ├── App.css                 # App 级样式 (已精简)
+│   ├── config/
+│   │   └── api.ts              # API 基址配置
+│   ├── lib/
+│   │   └── tauriBridge.ts      # Tauri 命令桥接 (文件选择、路径Reveal、WhatsApp进程)
+│   ├── types/
+│   │   └── api.ts              # 前后端共享类型定义
+│   ├── stores/
+│   │   └── scraperStore.ts     # Zustand 全局状态 (采集状态、项目根路径)
+│   ├── layout/
+│   │   ├── AppLayout.tsx       # 侧边栏布局 + 响应式抽屉
+│   │   └── AppLayout.css
+│   ├── components/
+│   │   ├── KeywordLibraryModal.tsx   # 关键词库弹窗 (CRUD + AI生成)
+│   │   └── KeywordLibraryModal.css
+│   └── pages/
+│       ├── EnginePage.tsx      # 获客引擎 (核心页面：关键词/地理位置/启停/日志)
+│       ├── EnginePage.css
+│       ├── DataPreviewPage.tsx # 数据预览 (CSV 预览、会话选择)
+│       ├── AiStrategyPage.tsx  # AI 策略 (提示词模板编辑)
+│       ├── SyncSettingsPage.tsx# 同步设置 (Google OAuth、代理、API Key)
+│       ├── WhatsappPage.tsx    # WhatsApp (iframe 嵌入、Node 进程控制)
+│       └── FormPage.css        # 表单页面通用样式
+├── src-tauri/
+│   ├── src/
+│   │   ├── main.rs             # Rust 入口 (windows_subsystem)
+│   │   └── lib.rs              # Tauri 命令 + 后端子进程管理
+│   ├── capabilities/
+│   │   └── default.json        # Tauri 权限配置
+│   ├── icons/                  # 应用图标 (多尺寸)
+│   ├── Cargo.toml              # Rust 依赖
+│   ├── tauri.conf.json         # Tauri 构建配置
+│   └── build.rs
+├── package.json
+├── vite.config.ts
+├── tsconfig.json / tsconfig.app.json / tsconfig.node.json
+├── eslint.config.js
+├── env.example
+└── index.html
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 开发方式
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# 1. 只启动前端 (系统浏览器调试，无桌面窗口)
+npm run web
+# 或
+npm run dev
+
+# 2. 启动 Tauri 桌面窗口 (完整桌面体验)
+npm run desktop
+# 或
+npm run tauri:dev
 ```
+
+后端 API 需按项目主 README 另行启动（Python FastAPI on `127.0.0.1:8756`）。
+
+---
+
+## 构建与打包
+
+```bash
+# 前端生产构建
+npm run build
+
+# 打包桌面安装包 (NSIS)
+npm run package
+# 产出: src-tauri/target/release/bundle/nsis/*.exe
+```
+
+---
+
+## 核心功能模块
+
+### 1. 获客引擎 (`/engine`)
+- 关键词输入 / 行业模板选择 / 关键词库弹窗
+- 地理位置级联选择 (大洲 → 国家 → 城市 → 区域) 或手动地址
+- 并发数控制
+- 实时采集状态看板 (已抓取 / 邮箱数 / 已同步)
+- SSE 日志流实时显示
+- 快捷操作：同步 CSV、汇总目录同步、代理探测、打开输出目录
+
+### 2. 数据预览 (`/data`)
+- Downloads 会话目录选择
+- 根目录汇总 CSV 选择
+- CSV 内容预览表格 (前 120 行)
+
+### 3. AI 策略 (`/ai`)
+- 关键词生成提示词模板编辑
+- 持久化到 `user_ai_prompt.txt`
+
+### 4. 同步设置 (`/sync`)
+- 环境变量配置 (HTTP 代理、Google Sheets ID、Gemini/豆包 API Key)
+- Google OAuth 授权流程 (需 `client_secret.json`)
+- Token 刷新
+
+### 5. WhatsApp (`/whatsapp`)
+- 嵌入 WhatsApp Web UI (iframe)
+- Node 子进程启动/停止 (Tauri 桌面版)
+- 上游状态轮询
+- CSV 电话号码预览联动
+
+---
+
+## Tauri Rust 后端职责
+
+- **自动启动 Python 后端**：优先查找 bundled `backend.exe`，回退到 `python -m uvicorn backend.main:app`
+- **单实例限制**：`tauri-plugin-single-instance`
+- **文件对话框**：`tauri-plugin-dialog`
+- **窗口状态记忆**：`tauri-plugin-window-state`
+- **系统命令**：`reveal_path` (在资源管理器中打开文件/目录)
+- **WhatsApp 进程管理**：`whatsapp_service_start/stop`
+
+---
+
+## 环境变量
+
+复制 `env.example` 为 `.env.development` / `.env.production`：
+
+```
+VITE_API_BASE_URL=http://127.0.0.1:8756
+```
+
+---
+
+## 注意事项
+
+1. **CORS**：生产 WebView 源常为 `https://tauri.localhost:<随机端口>`，后端已配置 `allow_origin_regex` 放行
+2. **Python 路径**：双击 exe 时 PATH 可能不含 `python`，已优先尝试 Windows `py -3`
+3. **仓库根路径**：API 进程需在含 `backend/main.py` 的目录下启动，壳层按 `app.exe` 位置自动推断
+4. **中文路径**：WiX MSI 打包在中文路径下可能失败，建议使用 NSIS (默认)
+
+---
+
+## License
+
+MIT

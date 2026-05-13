@@ -1,15 +1,47 @@
 """抓取控制器，协调抓取流程"""
 
 import os
+import sys
 import asyncio
 import threading
 from datetime import datetime
+from pathlib import Path
 from typing import Callable, List, Optional
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Browser
 
 from scraper.google_maps import scrape_google_maps
 from services.sheet_aggregator import aggregate_and_sync
 from config import HTTP_PROXY
+
+
+def _get_app_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+
+async def _launch_browser(p) -> Browser:
+    proxy = {"server": HTTP_PROXY} if HTTP_PROXY else None
+
+    strategies = [
+        ("内置 Chromium (headless=False)", dict(headless=False, proxy=proxy)),
+        ("系统 Chrome", dict(channel="chrome", headless=False, proxy=proxy)),
+        ("系统 Edge", dict(channel="msedge", headless=False, proxy=proxy)),
+        ("内置 Chromium (headless=True)", dict(headless=True, proxy=proxy)),
+    ]
+
+    last_error = None
+    for label, kwargs in strategies:
+        try:
+            browser = await p.chromium.launch(**kwargs)
+            return browser
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    raise RuntimeError(
+        f"无法启动浏览器，已尝试所有策略。请确保已安装 Chrome 或 Edge。\n最后错误: {last_error}"
+    )
 
 
 class ScraperController:
@@ -39,9 +71,10 @@ class ScraperController:
         self.is_running = True
         self.stop_event.clear()
         
-        # 创建带时间戳的输出目录
+        # 创建带时间戳的输出目录（位于 exe 所在目录下）
         session_folder_name = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        self.output_dir = os.path.join("Downloads", session_folder_name)
+        downloads_root = _get_app_dir() / "Downloads"
+        self.output_dir = str(downloads_root / session_folder_name)
         os.makedirs(self.output_dir, exist_ok=True)
         
         if self.on_status_update:
@@ -67,10 +100,7 @@ class ScraperController:
         """抓取工作协程"""
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=False,
-                    proxy={"server": HTTP_PROXY} if HTTP_PROXY else None
-                )
+                browser = await _launch_browser(p)
                 
                 # 创建信号量控制并发
                 semaphore = asyncio.Semaphore(concurrency)

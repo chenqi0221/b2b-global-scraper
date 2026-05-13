@@ -11,12 +11,14 @@ type State = {
   fetchProjectRoot: () => Promise<void>
 }
 
+let statusFailCount = 0
+
 export const useScraperStore = create<State>((set) => ({
   status: null,
   statusError: null,
   projectRoot: null,
   fetchStatus: async () => {
-    const delays = [0, 500, 1500]
+    const delays = [0, 800, 2000, 4000]
     let last: unknown = null
     for (const ms of delays) {
       if (ms > 0) await new Promise((r) => setTimeout(r, ms))
@@ -25,20 +27,24 @@ export const useScraperStore = create<State>((set) => ({
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         const j = (await r.json()) as ScrapeStatus
         set({ status: j, statusError: null })
+        statusFailCount = 0
         return
       } catch (e) {
         last = e
       }
     }
-    set({
-      statusError:
-        last instanceof Error
-          ? last.message
-          : String(last ?? 'unknown'),
-    })
+    statusFailCount++
+    if (statusFailCount >= 5) {
+      set({
+        statusError:
+          last instanceof Error
+            ? last.message
+            : String(last ?? 'unknown'),
+      })
+    }
   },
   fetchProjectRoot: async () => {
-    const delays = [0, 500, 1500]
+    const delays = [0, 800, 2000, 4000]
     for (const ms of delays) {
       if (ms > 0) await new Promise((r) => setTimeout(r, ms))
       try {

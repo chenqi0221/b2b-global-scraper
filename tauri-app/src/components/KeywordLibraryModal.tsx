@@ -141,7 +141,12 @@ export function KeywordLibraryModal({ open, onClose, onApplyToEngine }: Props) {
   }
 
   function applyToEngine() {
-    const text = rows.map((x) => x.en.trim()).filter(Boolean).join('\n')
+    if (selected.size === 0) {
+      window.alert('请先勾选要应用到引擎的关键词')
+      return
+    }
+    const items = [...selected].sort((a, b) => a - b).map((i) => rows[i])
+    const text = items.map((x) => x.en.trim()).filter(Boolean).join('\n')
     onApplyToEngine?.(text)
     onClose()
   }

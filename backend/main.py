@@ -82,14 +82,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "tauri://localhost",
-        "https://tauri.localhost",
-    ],
-    # Tauri 2 生产包 WebView 常为 https://tauri.localhost:<随机端口>，须正则匹配否则 fetch 会 Failed to fetch
-    allow_origin_regex=r"^https://tauri\.localhost(:\d+)?$|^tauri://localhost$|^asset://localhost$",
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
