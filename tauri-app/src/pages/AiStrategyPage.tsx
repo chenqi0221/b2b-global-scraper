@@ -16,9 +16,9 @@ export default function AiStrategyPage() {
       try {
         const r = await fetch(`${API_BASE}/api/ai/prompt`)
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        const j = (await r.json()) as { prompt: string; source: string }
+        const j = (await r.json()) as { content: string; source: string }
         if (!cancelled) {
-          setPrompt(j.prompt)
+          setPrompt(j.content)
           setSource(j.source)
         }
       } catch {
@@ -38,7 +38,7 @@ export default function AiStrategyPage() {
       const r = await fetch(`${API_BASE}/api/ai/prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ content: prompt }),
       })
       if (!r.ok) throw new Error(`HTTP ${r.status}`)
       const j = (await r.json()) as { path?: string }

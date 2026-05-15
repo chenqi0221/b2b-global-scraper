@@ -12,6 +12,8 @@ export default function SyncSettingsPage() {
   const [oauth, setOauth] = useState<OauthStatus | null>(null)
   const [oauthBusy, setOauthBusy] = useState(false)
   const [oauthMsg, setOauthMsg] = useState<string | null>(null)
+  const [testStatus, setTestStatus] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [testing, setTesting] = useState(false)
 
   const loadOauth = async () => {
     try {
@@ -108,6 +110,48 @@ export default function SyncSettingsPage() {
     }
   }
 
+  async function onTestLLM() {
+    if (!form) return
+    const key = form.DOUBAO_API_KEY
+    if (!key || key.includes('…')) {
+      setTestStatus({ ok: false, msg: '请先填写完整的豆包 API Key（不能包含脱敏的「…」）' })
+      return
+    }
+    if (!form.DOUBAO_MODEL_ENDPOINT) {
+      setTestStatus({ ok: false, msg: '请先填写 豆包 Model Endpoint' })
+      return
+    }
+    setTesting(true)
+    setTestStatus(null)
+    try {
+      const r = await fetch(`${API_BASE}/api/ai/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: key,
+          base_url: form.DOUBAO_BASE_URL,
+          model_endpoint: form.DOUBAO_MODEL_ENDPOINT,
+        }),
+      })
+      const j = (await r.json()) as {
+        ok?: boolean
+        elapsed_ms?: number
+        reply?: string
+        error?: string
+        usage?: { prompt_tokens?: number; completion_tokens?: number }
+      }
+      if (j.ok) {
+        setTestStatus({ ok: true, msg: `连接成功！响应: "${j.reply ?? ''}"，耗时 ${j.elapsed_ms ?? 0}ms` })
+      } else {
+        setTestStatus({ ok: false, msg: `连接失败：${j.error ?? '未知错误'} (${j.elapsed_ms ?? 0}ms)` })
+      }
+    } catch (e) {
+      setTestStatus({ ok: false, msg: e instanceof TypeError ? '后端无响应，请确认程序已启动' : `请求出错: ${e instanceof Error ? e.message : String(e)}` })
+    } finally {
+      setTesting(false)
+    }
+  }
+
   if (loading) return <p className="page-muted">加载中…</p>
   if (!form) return <p className="page-muted">无法读取配置，请确认后端已启动。</p>
 
@@ -166,6 +210,16 @@ export default function SyncSettingsPage() {
             onChange={(e) => patch('DOUBAO_MODEL_ENDPOINT')(e.target.value)}
           />
         </label>
+        <div className="form-actions" style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+          <button type="button" className="btn primary" disabled={testing} onClick={() => void onTestLLM()}>
+            {testing ? '测试中…' : '测试大模型连接'}
+          </button>
+        </div>
+        {testStatus ? (
+          <p className="page-muted" style={{ color: testStatus.ok ? '#16a34a' : '#b91c1c', whiteSpace: 'pre-wrap' }}>
+            {testStatus.msg}
+          </p>
+        ) : null}
         <label className="field inline">
           <input type="checkbox" checked={form.SYNC_BY_DATE} onChange={(e) => patch('SYNC_BY_DATE')(e.target.checked)} />
           <span>按日期分表同步（SYNC_BY_DATE）</span>

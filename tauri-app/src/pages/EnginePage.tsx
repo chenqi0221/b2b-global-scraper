@@ -351,6 +351,36 @@ export default function EnginePage() {
     }
   }
 
+  async function onSaveCurrentToLibrary() {
+    const lines = kwText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (!lines.length) {
+      window.alert('关键词列表为空')
+      return
+    }
+    const pairs = lines.map((en) => ({ en, zh: '' }))
+    try {
+      const r = await fetch(`${API_BASE}/api/keywords/library/append`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pairs),
+      })
+      const j = (await r.json()) as { ok?: boolean; added?: number }
+      window.alert(j.ok ? `已保存 ${j.added ?? pairs.length} 条到关键词库` : '保存失败')
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : '保存失败')
+    }
+  }
+
+  function onClearKeywords() {
+    if (!kwText.trim()) return
+    if (window.confirm('确定要清空关键词列表吗？')) {
+      setKwText('')
+    }
+  }
+
   const running = status?.is_running ?? false
 
   return (
@@ -403,37 +433,74 @@ export default function EnginePage() {
               spellCheck={false}
             />
           </label>
-          <div className="engine-inline-actions">
-            <button type="button" className="btn" onClick={() => setKwLibOpen(true)}>
-              关键词库…
+          <div className="kw-toolbar">
+            <button type="button" className="btn kw-lib-btn" onClick={() => setKwLibOpen(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              关键词库
+            </button>
+            <button type="button" className="btn kw-save-btn" onClick={() => void onSaveCurrentToLibrary()}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              保存到关键词库
+            </button>
+            <button type="button" className="btn kw-clear-btn" onClick={onClearKeywords}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              清空列表
             </button>
           </div>
-          <div className="engine-ai-gen">
-            <input
-              placeholder="AI 种子词"
-              value={aiSeed}
-              onChange={(e) => setAiSeed(e.target.value)}
-              disabled={aiBusy}
-            />
-            <input
-              type="number"
-              min={1}
-              value={aiNum}
-              onChange={(e) => setAiNum(Number(e.target.value) || 7)}
-              disabled={aiBusy}
-              style={{ width: 70 }}
-            />
-            <button type="button" className="btn" disabled={aiBusy} onClick={() => void onAiGenerate()}>
-              {aiBusy ? 'AI 生成中…' : 'AI 生成'}
-            </button>
-            {generatedPairs.length > 0 && (
-              <button type="button" className="btn primary" disabled={aiBusy} onClick={() => void onSaveToLibrary()}>
-                存入种子库
-              </button>
-            )}
+          <div className="ai-gen-card">
+            <div className="ai-gen-header">
+              <span className="ai-gen-title">AI 关键词生成</span>
+              <span className="ai-gen-desc">输入种子词，AI 自动扩展相关关键词</span>
+            </div>
+            <div className="ai-gen-body">
+              <input
+                className="ai-seed-input"
+                placeholder="输入种子词，如：浴室柜、LED 灯、机械零件…"
+                value={aiSeed}
+                onChange={(e) => setAiSeed(e.target.value)}
+                disabled={aiBusy}
+              />
+              <div className="ai-gen-actions-row">
+                <div className="ai-gen-quantity">
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={aiNum}
+                    onChange={(e) => setAiNum(Number(e.target.value) || 7)}
+                    disabled={aiBusy}
+                    title="生成数量"
+                  />
+                </div>
+                <button type="button" className="btn ai-gen-btn" disabled={aiBusy || !aiSeed.trim()} onClick={() => void onAiGenerate()}>
+                  {aiBusy ? (
+                    <>
+                      <span className="ai-spinner" />
+                      生成中…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/></svg>
+                      AI 生成
+                    </>
+                  )}
+                </button>
+                {generatedPairs.length > 0 && (
+                  <button type="button" className="btn primary ai-save-btn" disabled={aiBusy} onClick={() => void onSaveToLibrary()}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    存入种子库
+                  </button>
+                )}
+              </div>
+            </div>
+            {aiMsg ? (
+              <div className={`ai-gen-toast ${(aiMsg.startsWith('生成了') || aiMsg.startsWith('已存入')) ? 'ai-toast-success' : 'ai-toast-error'}`}>
+                <span className="ai-toast-icon">{(aiMsg.startsWith('生成了') || aiMsg.startsWith('已存入')) ? '✓' : '✗'}</span>
+                {aiMsg}
+              </div>
+            ) : null}
           </div>
-          {aiMsg ? <p className={`engine-hint ${(aiMsg.startsWith('生成了') || aiMsg.startsWith('已存入')) ? 'engine-success' : 'engine-error'}`}>{aiMsg}</p> : null}
-          <label className="field inline">
+          <label className="field inline concurrency-field">
             <span>并发数</span>
             <input
               type="number"
