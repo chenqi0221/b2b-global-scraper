@@ -1,3 +1,943 @@
+AI_KEYWORD_PROMPT = ""
+
+GEOGRAPHICAL_DATA = {
+    "亚洲": {
+        "中国": {
+            "en": "China",
+            "cities": {
+                "北京 (Beijing)": ["所有", "朝阳区", "海淀区", "丰台区", "通州区", "大兴区"],
+                "上海 (Shanghai)": ["所有", "浦东新区", "黄浦区", "徐汇区", "静安区", "闵行区"],
+                "深圳 (Shenzhen)": ["所有", "南山区", "福田区", "罗湖区", "宝安区", "龙华区"],
+                "广州 (Guangzhou)": ["所有", "天河区", "越秀区", "白云区", "番禺区", "海珠区"],
+                "杭州 (Hangzhou)": ["所有", "西湖区", "滨江区", "余杭区", "萧山区"],
+                "成都 (Chengdu)": ["所有", "高新区", "武侯区", "锦江区"],
+                "武汉 (Wuhan)": ["所有", "洪山区", "江汉区", "武昌区"],
+                "南京 (Nanjing)": ["所有", "鼓楼区", "江宁区", "建邺区"],
+                "重庆 (Chongqing)": ["所有", "渝中区", "江北区", "渝北区"],
+                "天津 (Tianjin)": ["所有", "和平区", "滨海新区", "河西区"],
+                "苏州 (Suzhou)": ["所有", "工业园区", "姑苏区", "虎丘区"],
+                "东莞 (Dongguan)": ["所有", "南城区", "东城区", "长安镇"],
+                "宁波 (Ningbo)": ["所有", "海曙区", "鄞州区", "北仑区"],
+                "青岛 (Qingdao)": ["所有", "市南区", "崂山区", "黄岛区"],
+                "厦门 (Xiamen)": ["所有", "思明区", "湖里区", "集美区"],
+                "西安 (Xian)": ["所有", "雁塔区", "碑林区", "未央区"],
+                "长沙 (Changsha)": ["所有", "岳麓区", "芙蓉区", "天心区"],
+                "合肥 (Hefei)": ["所有", "蜀山区", "包河区", "庐阳区"],
+                "郑州 (Zhengzhou)": ["所有", "金水区", "郑东新区", "二七区"],
+                "佛山 (Foshan)": ["所有", "禅城区", "南海区", "顺德区"],
+                "福州 (Fuzhou)": ["所有", "鼓楼区", "台江区", "仓山区"],
+                "温州 (Wenzhou)": ["所有", "鹿城区", "瓯海区", "龙湾区"],
+                "无锡 (Wuxi)": ["所有", "新吴区", "滨湖区", "梁溪区"],
+                "大连 (Dalian)": ["所有", "中山区", "西岗区", "沙河口区"],
+                "济南 (Jinan)": ["所有", "历下区", "市中区", "槐荫区"],
+                "昆明 (Kunming)": ["所有", "五华区", "盘龙区", "官渡区"],
+                "哈尔滨 (Harbin)": ["所有", "道里区", "南岗区", "香坊区"],
+                "沈阳 (Shenyang)": ["所有", "和平区", "沈河区", "铁西区"],
+                "长春 (Changchun)": ["所有", "朝阳区", "南关区", "宽城区"],
+                "石家庄 (Shijiazhuang)": ["所有", "长安区", "桥西区", "裕华区"],
+                "义乌 (Yiwu)": ["所有"],
+                "香港 (Hong Kong)": ["所有", "九龙", "新界", "中环"],
+                "台湾 (Taiwan)": ["所有", "台北", "新北", "台中", "高雄"],
+                "澳门 (Macau)": ["所有"],
+            }
+        },
+        "日本": {
+            "en": "Japan",
+            "cities": {
+                "东京 (Tokyo)": ["所有", "千代田区", "中央区", "港区", "新宿区", "涩谷区"],
+                "大阪 (Osaka)": ["所有", "中央区", "北区", "浪速区", "西区"],
+                "名古屋 (Nagoya)": ["所有", "中区", "东区", "千种区"],
+                "横滨 (Yokohama)": ["所有", "西区", "中区", "港北区"],
+                "神户 (Kobe)": ["所有"],
+                "京都 (Kyoto)": ["所有"],
+                "福冈 (Fukuoka)": ["所有"],
+                "札幌 (Sapporo)": ["所有"],
+            }
+        },
+        "韩国": {
+            "en": "South Korea",
+            "cities": {
+                "首尔 (Seoul)": ["所有", "江南区", "钟路区", "中区", "麻浦区"],
+                "釜山 (Busan)": ["所有", "海云台区", "釜山镇区"],
+                "仁川 (Incheon)": ["所有"],
+                "大邱 (Daegu)": ["所有"],
+                "大田 (Daejeon)": ["所有"],
+                "光州 (Gwangju)": ["所有"],
+            }
+        },
+        "印度": {
+            "en": "India",
+            "cities": {
+                "新德里 (New Delhi)": ["所有", "德里", "古尔冈", "诺伊达"],
+                "孟买 (Mumbai)": ["所有", "南部", "北部", "东部"],
+                "班加罗尔 (Bangalore)": ["所有"],
+                "金奈 (Chennai)": ["所有"],
+                "海得拉巴 (Hyderabad)": ["所有"],
+                "加尔各答 (Kolkata)": ["所有"],
+                "浦那 (Pune)": ["所有"],
+                "艾哈迈达巴德 (Ahmedabad)": ["所有"],
+                "斋浦尔 (Jaipur)": ["所有"],
+                "勒克瑙 (Lucknow)": ["所有"],
+            }
+        },
+        "越南": {
+            "en": "Vietnam",
+            "cities": {
+                "胡志明市 (Ho Chi Minh City)": ["所有", "第1郡", "第3郡", "平盛郡"],
+                "河内 (Hanoi)": ["所有", "还剑郡", "巴亭郡", "纸桥郡"],
+                "岘港 (Da Nang)": ["所有"],
+                "海防 (Hai Phong)": ["所有"],
+                "平阳 (Binh Duong)": ["所有"],
+            }
+        },
+        "泰国": {
+            "en": "Thailand",
+            "cities": {
+                "曼谷 (Bangkok)": ["所有", "素坤逸", "是隆", "拉差达"],
+                "清迈 (Chiang Mai)": ["所有"],
+                "芭提雅 (Pattaya)": ["所有"],
+                "暖武里 (Nonthaburi)": ["所有"],
+            }
+        },
+        "印度尼西亚": {
+            "en": "Indonesia",
+            "cities": {
+                "雅加达 (Jakarta)": ["所有", "南区", "中心区", "西区"],
+                "泗水 (Surabaya)": ["所有"],
+                "万隆 (Bandung)": ["所有"],
+                "棉兰 (Medan)": ["所有"],
+                "日惹 (Yogyakarta)": ["所有"],
+            }
+        },
+        "马来西亚": {
+            "en": "Malaysia",
+            "cities": {
+                "吉隆坡 (Kuala Lumpur)": ["所有"],
+                "槟城 (Penang)": ["所有"],
+                "柔佛巴鲁 (Johor Bahru)": ["所有"],
+                "莎阿南 (Shah Alam)": ["所有"],
+            }
+        },
+        "新加坡": {
+            "en": "Singapore",
+            "cities": {
+                "新加坡市 (Singapore City)": ["所有", "市中心", "裕廊", "樟宜", "乌节路"],
+            }
+        },
+        "菲律宾": {
+            "en": "Philippines",
+            "cities": {
+                "马尼拉 (Manila)": ["所有", "马卡蒂", "奎松市", "帕西格", "塔吉格"],
+                "宿务 (Cebu)": ["所有"],
+                "达沃 (Davao)": ["所有"],
+            }
+        },
+        "巴基斯坦": {
+            "en": "Pakistan",
+            "cities": {
+                "卡拉奇 (Karachi)": ["所有"],
+                "拉合尔 (Lahore)": ["所有"],
+                "伊斯兰堡 (Islamabad)": ["所有"],
+                "费萨拉巴德 (Faisalabad)": ["所有"],
+            }
+        },
+        "孟加拉国": {
+            "en": "Bangladesh",
+            "cities": {
+                "达卡 (Dhaka)": ["所有"],
+                "吉大港 (Chittagong)": ["所有"],
+            }
+        },
+        "斯里兰卡": {
+            "en": "Sri Lanka",
+            "cities": {
+                "科伦坡 (Colombo)": ["所有"],
+            }
+        },
+        "缅甸": {
+            "en": "Myanmar",
+            "cities": {
+                "仰光 (Yangon)": ["所有"],
+                "曼德勒 (Mandalay)": ["所有"],
+            }
+        },
+        "柬埔寨": {
+            "en": "Cambodia",
+            "cities": {
+                "金边 (Phnom Penh)": ["所有"],
+            }
+        },
+        "老挝": {
+            "en": "Laos",
+            "cities": {
+                "万象 (Vientiane)": ["所有"],
+            }
+        },
+        "尼泊尔": {
+            "en": "Nepal",
+            "cities": {
+                "加德满都 (Kathmandu)": ["所有"],
+            }
+        },
+        "蒙古": {
+            "en": "Mongolia",
+            "cities": {
+                "乌兰巴托 (Ulaanbaatar)": ["所有"],
+            }
+        },
+        "哈萨克斯坦": {
+            "en": "Kazakhstan",
+            "cities": {
+                "阿拉木图 (Almaty)": ["所有"],
+                "努尔苏丹 (Nur-Sultan)": ["所有"],
+            }
+        },
+        "乌兹别克斯坦": {
+            "en": "Uzbekistan",
+            "cities": {
+                "塔什干 (Tashkent)": ["所有"],
+            }
+        },
+        "阿联酋": {
+            "en": "United Arab Emirates",
+            "cities": {
+                "迪拜 (Dubai)": ["所有", "迪拜市中心", "迪拜码头", "杰贝阿里", "商业湾"],
+                "阿布扎比 (Abu Dhabi)": ["所有"],
+                "沙迦 (Sharjah)": ["所有"],
+            }
+        },
+        "沙特阿拉伯": {
+            "en": "Saudi Arabia",
+            "cities": {
+                "利雅得 (Riyadh)": ["所有"],
+                "吉达 (Jeddah)": ["所有"],
+                "达曼 (Dammam)": ["所有"],
+                "麦加 (Mecca)": ["所有"],
+            }
+        },
+        "卡塔尔": {
+            "en": "Qatar",
+            "cities": {
+                "多哈 (Doha)": ["所有"],
+            }
+        },
+        "科威特": {
+            "en": "Kuwait",
+            "cities": {
+                "科威特城 (Kuwait City)": ["所有"],
+            }
+        },
+        "阿曼": {
+            "en": "Oman",
+            "cities": {
+                "马斯喀特 (Muscat)": ["所有"],
+            }
+        },
+        "巴林": {
+            "en": "Bahrain",
+            "cities": {
+                "麦纳麦 (Manama)": ["所有"],
+            }
+        },
+        "以色列": {
+            "en": "Israel",
+            "cities": {
+                "特拉维夫 (Tel Aviv)": ["所有"],
+                "耶路撒冷 (Jerusalem)": ["所有"],
+                "海法 (Haifa)": ["所有"],
+            }
+        },
+        "土耳其": {
+            "en": "Turkey",
+            "cities": {
+                "伊斯坦布尔 (Istanbul)": ["所有", "欧洲区", "亚洲区"],
+                "安卡拉 (Ankara)": ["所有"],
+                "伊兹密尔 (Izmir)": ["所有"],
+                "布尔萨 (Bursa)": ["所有"],
+            }
+        },
+        "约旦": {
+            "en": "Jordan",
+            "cities": {
+                "安曼 (Amman)": ["所有"],
+            }
+        },
+        "黎巴嫩": {
+            "en": "Lebanon",
+            "cities": {
+                "贝鲁特 (Beirut)": ["所有"],
+            }
+        },
+        "伊朗": {
+            "en": "Iran",
+            "cities": {
+                "德黑兰 (Tehran)": ["所有"],
+                "伊斯法罕 (Isfahan)": ["所有"],
+            }
+        },
+        "伊拉克": {
+            "en": "Iraq",
+            "cities": {
+                "巴格达 (Baghdad)": ["所有"],
+            }
+        },
+        "阿塞拜疆": {
+            "en": "Azerbaijan",
+            "cities": {
+                "巴库 (Baku)": ["所有"],
+            }
+        },
+        "格鲁吉亚": {
+            "en": "Georgia",
+            "cities": {
+                "第比利斯 (Tbilisi)": ["所有"],
+            }
+        },
+        "亚美尼亚": {
+            "en": "Armenia",
+            "cities": {
+                "埃里温 (Yerevan)": ["所有"],
+            }
+        },
+    },
+    "欧洲": {
+        "英国": {
+            "en": "United Kingdom",
+            "cities": {
+                "伦敦 (London)": ["所有", "市中心", "金丝雀码头", "克洛伊登"],
+                "曼彻斯特 (Manchester)": ["所有"],
+                "伯明翰 (Birmingham)": ["所有"],
+                "爱丁堡 (Edinburgh)": ["所有"],
+                "格拉斯哥 (Glasgow)": ["所有"],
+                "利物浦 (Liverpool)": ["所有"],
+                "利兹 (Leeds)": ["所有"],
+                "布里斯托 (Bristol)": ["所有"],
+                "南安普顿 (Southampton)": ["所有"],
+            }
+        },
+        "德国": {
+            "en": "Germany",
+            "cities": {
+                "柏林 (Berlin)": ["所有"],
+                "慕尼黑 (Munich)": ["所有"],
+                "法兰克福 (Frankfurt)": ["所有"],
+                "汉堡 (Hamburg)": ["所有"],
+                "斯图加特 (Stuttgart)": ["所有"],
+                "杜塞尔多夫 (Dusseldorf)": ["所有"],
+                "科隆 (Cologne)": ["所有"],
+                "莱比锡 (Leipzig)": ["所有"],
+                "德累斯顿 (Dresden)": ["所有"],
+                "纽伦堡 (Nuremberg)": ["所有"],
+            }
+        },
+        "法国": {
+            "en": "France",
+            "cities": {
+                "巴黎 (Paris)": ["所有", "市中心", "拉德芳斯"],
+                "里昂 (Lyon)": ["所有"],
+                "马赛 (Marseille)": ["所有"],
+                "图卢兹 (Toulouse)": ["所有"],
+                "尼斯 (Nice)": ["所有"],
+                "南特 (Nantes)": ["所有"],
+                "斯特拉斯堡 (Strasbourg)": ["所有"],
+                "波尔多 (Bordeaux)": ["所有"],
+                "里尔 (Lille)": ["所有"],
+            }
+        },
+        "意大利": {
+            "en": "Italy",
+            "cities": {
+                "罗马 (Rome)": ["所有"],
+                "米兰 (Milan)": ["所有"],
+                "那不勒斯 (Naples)": ["所有"],
+                "都灵 (Turin)": ["所有"],
+                "佛罗伦萨 (Florence)": ["所有"],
+                "博洛尼亚 (Bologna)": ["所有"],
+                "热那亚 (Genoa)": ["所有"],
+                "威尼斯 (Venice)": ["所有"],
+            }
+        },
+        "西班牙": {
+            "en": "Spain",
+            "cities": {
+                "马德里 (Madrid)": ["所有"],
+                "巴塞罗那 (Barcelona)": ["所有"],
+                "瓦伦西亚 (Valencia)": ["所有"],
+                "塞维利亚 (Seville)": ["所有"],
+                "毕尔巴鄂 (Bilbao)": ["所有"],
+                "萨拉戈萨 (Zaragoza)": ["所有"],
+                "马拉加 (Malaga)": ["所有"],
+            }
+        },
+        "荷兰": {
+            "en": "Netherlands",
+            "cities": {
+                "阿姆斯特丹 (Amsterdam)": ["所有"],
+                "鹿特丹 (Rotterdam)": ["所有"],
+                "海牙 (The Hague)": ["所有"],
+                "乌得勒支 (Utrecht)": ["所有"],
+                "埃因霍温 (Eindhoven)": ["所有"],
+            }
+        },
+        "比利时": {
+            "en": "Belgium",
+            "cities": {
+                "布鲁塞尔 (Brussels)": ["所有"],
+                "安特卫普 (Antwerp)": ["所有"],
+                "根特 (Ghent)": ["所有"],
+                "列日 (Liege)": ["所有"],
+            }
+        },
+        "瑞士": {
+            "en": "Switzerland",
+            "cities": {
+                "苏黎世 (Zurich)": ["所有"],
+                "日内瓦 (Geneva)": ["所有"],
+                "巴塞尔 (Basel)": ["所有"],
+                "伯尔尼 (Bern)": ["所有"],
+            }
+        },
+        "奥地利": {
+            "en": "Austria",
+            "cities": {
+                "维也纳 (Vienna)": ["所有"],
+                "格拉茨 (Graz)": ["所有"],
+                "林茨 (Linz)": ["所有"],
+                "萨尔茨堡 (Salzburg)": ["所有"],
+            }
+        },
+        "瑞典": {
+            "en": "Sweden",
+            "cities": {
+                "斯德哥尔摩 (Stockholm)": ["所有"],
+                "哥德堡 (Gothenburg)": ["所有"],
+                "马尔默 (Malmo)": ["所有"],
+            }
+        },
+        "丹麦": {
+            "en": "Denmark",
+            "cities": {
+                "哥本哈根 (Copenhagen)": ["所有"],
+                "奥胡斯 (Aarhus)": ["所有"],
+                "欧登塞 (Odense)": ["所有"],
+            }
+        },
+        "挪威": {
+            "en": "Norway",
+            "cities": {
+                "奥斯陆 (Oslo)": ["所有"],
+                "卑尔根 (Bergen)": ["所有"],
+                "斯塔万格 (Stavanger)": ["所有"],
+            }
+        },
+        "芬兰": {
+            "en": "Finland",
+            "cities": {
+                "赫尔辛基 (Helsinki)": ["所有"],
+                "坦佩雷 (Tampere)": ["所有"],
+            }
+        },
+        "波兰": {
+            "en": "Poland",
+            "cities": {
+                "华沙 (Warsaw)": ["所有"],
+                "克拉科夫 (Krakow)": ["所有"],
+                "弗罗茨瓦夫 (Wroclaw)": ["所有"],
+                "波兹南 (Poznan)": ["所有"],
+                "格但斯克 (Gdansk)": ["所有"],
+            }
+        },
+        "捷克": {
+            "en": "Czech Republic",
+            "cities": {
+                "布拉格 (Prague)": ["所有"],
+                "布尔诺 (Brno)": ["所有"],
+            }
+        },
+        "匈牙利": {
+            "en": "Hungary",
+            "cities": {
+                "布达佩斯 (Budapest)": ["所有"],
+            }
+        },
+        "罗马尼亚": {
+            "en": "Romania",
+            "cities": {
+                "布加勒斯特 (Bucharest)": ["所有"],
+                "克卢日-纳波卡 (Cluj-Napoca)": ["所有"],
+            }
+        },
+        "保加利亚": {
+            "en": "Bulgaria",
+            "cities": {
+                "索菲亚 (Sofia)": ["所有"],
+                "普罗夫迪夫 (Plovdiv)": ["所有"],
+            }
+        },
+        "希腊": {
+            "en": "Greece",
+            "cities": {
+                "雅典 (Athens)": ["所有"],
+                "塞萨洛尼基 (Thessaloniki)": ["所有"],
+            }
+        },
+        "葡萄牙": {
+            "en": "Portugal",
+            "cities": {
+                "里斯本 (Lisbon)": ["所有"],
+                "波尔图 (Porto)": ["所有"],
+                "布拉加 (Braga)": ["所有"],
+            }
+        },
+        "爱尔兰": {
+            "en": "Ireland",
+            "cities": {
+                "都柏林 (Dublin)": ["所有"],
+                "科克 (Cork)": ["所有"],
+            }
+        },
+        "俄罗斯": {
+            "en": "Russia",
+            "cities": {
+                "莫斯科 (Moscow)": ["所有"],
+                "圣彼得堡 (Saint Petersburg)": ["所有"],
+                "叶卡捷琳堡 (Yekaterinburg)": ["所有"],
+                "喀山 (Kazan)": ["所有"],
+                "新西伯利亚 (Novosibirsk)": ["所有"],
+            }
+        },
+        "乌克兰": {
+            "en": "Ukraine",
+            "cities": {
+                "基辅 (Kyiv)": ["所有"],
+                "利沃夫 (Lviv)": ["所有"],
+                "敖德萨 (Odessa)": ["所有"],
+            }
+        },
+        "白俄罗斯": {
+            "en": "Belarus",
+            "cities": {
+                "明斯克 (Minsk)": ["所有"],
+            }
+        },
+        "立陶宛": {
+            "en": "Lithuania",
+            "cities": {
+                "维尔纽斯 (Vilnius)": ["所有"],
+                "考纳斯 (Kaunas)": ["所有"],
+            }
+        },
+        "拉脱维亚": {
+            "en": "Latvia",
+            "cities": {
+                "里加 (Riga)": ["所有"],
+            }
+        },
+        "爱沙尼亚": {
+            "en": "Estonia",
+            "cities": {
+                "塔林 (Tallinn)": ["所有"],
+            }
+        },
+        "斯洛伐克": {
+            "en": "Slovakia",
+            "cities": {
+                "布拉迪斯拉发 (Bratislava)": ["所有"],
+            }
+        },
+        "斯洛文尼亚": {
+            "en": "Slovenia",
+            "cities": {
+                "卢布尔雅那 (Ljubljana)": ["所有"],
+            }
+        },
+        "克罗地亚": {
+            "en": "Croatia",
+            "cities": {
+                "萨格勒布 (Zagreb)": ["所有"],
+            }
+        },
+        "塞尔维亚": {
+            "en": "Serbia",
+            "cities": {
+                "贝尔格莱德 (Belgrade)": ["所有"],
+            }
+        },
+        "塞浦路斯": {
+            "en": "Cyprus",
+            "cities": {
+                "尼科西亚 (Nicosia)": ["所有"],
+                "利马索尔 (Limassol)": ["所有"],
+            }
+        },
+        "马耳他": {
+            "en": "Malta",
+            "cities": {
+                "瓦莱塔 (Valletta)": ["所有"],
+            }
+        },
+        "卢森堡": {
+            "en": "Luxembourg",
+            "cities": {
+                "卢森堡市 (Luxembourg City)": ["所有"],
+            }
+        },
+    },
+    "北美洲": {
+        "美国": {
+            "en": "United States",
+            "cities": {
+                "纽约 (New York)": ["所有", "曼哈顿", "布鲁克林", "皇后区", "布朗克斯"],
+                "洛杉矶 (Los Angeles)": ["所有", "市中心", "好莱坞", "圣莫尼卡", "长滩"],
+                "芝加哥 (Chicago)": ["所有"],
+                "休斯顿 (Houston)": ["所有"],
+                "旧金山 (San Francisco)": ["所有", "市中心", "硅谷"],
+                "圣何塞 (San Jose)": ["所有"],
+                "西雅图 (Seattle)": ["所有"],
+                "波士顿 (Boston)": ["所有"],
+                "迈阿密 (Miami)": ["所有", "市中心", "多拉", "海厄利亚"],
+                "达拉斯 (Dallas)": ["所有"],
+                "亚特兰大 (Atlanta)": ["所有"],
+                "费城 (Philadelphia)": ["所有"],
+                "华盛顿 (Washington DC)": ["所有"],
+                "圣迭戈 (San Diego)": ["所有"],
+                "波特兰 (Portland)": ["所有"],
+                "丹佛 (Denver)": ["所有"],
+                "凤凰城 (Phoenix)": ["所有"],
+                "底特律 (Detroit)": ["所有"],
+                "明尼阿波利斯 (Minneapolis)": ["所有"],
+                "奥斯汀 (Austin)": ["所有"],
+                "奥兰多 (Orlando)": ["所有"],
+                "匹兹堡 (Pittsburgh)": ["所有"],
+                "盐湖城 (Salt Lake City)": ["所有"],
+                "坦帕 (Tampa)": ["所有"],
+                "夏洛特 (Charlotte)": ["所有"],
+                "拉斯维加斯 (Las Vegas)": ["所有"],
+            }
+        },
+        "加拿大": {
+            "en": "Canada",
+            "cities": {
+                "多伦多 (Toronto)": ["所有", "市中心", "密西沙加", "布兰普顿", "万锦"],
+                "温哥华 (Vancouver)": ["所有", "本拿比", "列治文", "素里"],
+                "蒙特利尔 (Montreal)": ["所有"],
+                "卡尔加里 (Calgary)": ["所有"],
+                "渥太华 (Ottawa)": ["所有"],
+                "埃德蒙顿 (Edmonton)": ["所有"],
+                "魁北克市 (Quebec City)": ["所有"],
+                "温尼伯 (Winnipeg)": ["所有"],
+                "汉密尔顿 (Hamilton)": ["所有"],
+                "滑铁卢 (Waterloo)": ["所有"],
+            }
+        },
+        "墨西哥": {
+            "en": "Mexico",
+            "cities": {
+                "墨西哥城 (Mexico City)": ["所有"],
+                "瓜达拉哈拉 (Guadalajara)": ["所有"],
+                "蒙特雷 (Monterrey)": ["所有"],
+                "蒂华纳 (Tijuana)": ["所有"],
+            }
+        },
+        "古巴": {
+            "en": "Cuba",
+            "cities": {
+                "哈瓦那 (Havana)": ["所有"],
+            }
+        },
+        "牙买加": {
+            "en": "Jamaica",
+            "cities": {
+                "金斯敦 (Kingston)": ["所有"],
+            }
+        },
+        "多米尼加": {
+            "en": "Dominican Republic",
+            "cities": {
+                "圣多明各 (Santo Domingo)": ["所有"],
+            }
+        },
+        "危地马拉": {
+            "en": "Guatemala",
+            "cities": {
+                "危地马拉市 (Guatemala City)": ["所有"],
+            }
+        },
+        "巴拿马": {
+            "en": "Panama",
+            "cities": {
+                "巴拿马城 (Panama City)": ["所有"],
+            }
+        },
+        "哥斯达黎加": {
+            "en": "Costa Rica",
+            "cities": {
+                "圣何塞 (San Jose)": ["所有"],
+            }
+        },
+    },
+    "南美洲": {
+        "巴西": {
+            "en": "Brazil",
+            "cities": {
+                "圣保罗 (Sao Paulo)": ["所有", "市中心", "保利斯塔大道"],
+                "里约热内卢 (Rio de Janeiro)": ["所有"],
+                "巴西利亚 (Brasilia)": ["所有"],
+                "贝洛奥里藏特 (Belo Horizonte)": ["所有"],
+                "库里蒂巴 (Curitiba)": ["所有"],
+                "阿雷格里港 (Porto Alegre)": ["所有"],
+                "福塔莱萨 (Fortaleza)": ["所有"],
+                "萨尔瓦多 (Salvador)": ["所有"],
+                "累西腓 (Recife)": ["所有"],
+            }
+        },
+        "阿根廷": {
+            "en": "Argentina",
+            "cities": {
+                "布宜诺斯艾利斯 (Buenos Aires)": ["所有"],
+                "科尔多瓦 (Cordoba)": ["所有"],
+                "罗萨里奥 (Rosario)": ["所有"],
+                "门多萨 (Mendoza)": ["所有"],
+            }
+        },
+        "哥伦比亚": {
+            "en": "Colombia",
+            "cities": {
+                "波哥大 (Bogota)": ["所有"],
+                "麦德林 (Medellin)": ["所有"],
+                "卡利 (Cali)": ["所有"],
+            }
+        },
+        "智利": {
+            "en": "Chile",
+            "cities": {
+                "圣地亚哥 (Santiago)": ["所有"],
+                "瓦尔帕莱索 (Valparaiso)": ["所有"],
+            }
+        },
+        "秘鲁": {
+            "en": "Peru",
+            "cities": {
+                "利马 (Lima)": ["所有"],
+            }
+        },
+        "委内瑞拉": {
+            "en": "Venezuela",
+            "cities": {
+                "加拉加斯 (Caracas)": ["所有"],
+                "马拉开波 (Maracaibo)": ["所有"],
+            }
+        },
+        "厄瓜多尔": {
+            "en": "Ecuador",
+            "cities": {
+                "基多 (Quito)": ["所有"],
+                "瓜亚基尔 (Guayaquil)": ["所有"],
+            }
+        },
+        "乌拉圭": {
+            "en": "Uruguay",
+            "cities": {
+                "蒙得维的亚 (Montevideo)": ["所有"],
+            }
+        },
+        "巴拉圭": {
+            "en": "Paraguay",
+            "cities": {
+                "亚松森 (Asuncion)": ["所有"],
+            }
+        },
+        "玻利维亚": {
+            "en": "Bolivia",
+            "cities": {
+                "拉巴斯 (La Paz)": ["所有"],
+                "圣克鲁斯 (Santa Cruz)": ["所有"],
+            }
+        },
+    },
+    "非洲": {
+        "南非": {
+            "en": "South Africa",
+            "cities": {
+                "约翰内斯堡 (Johannesburg)": ["所有", "桑顿", "中央商务区"],
+                "开普敦 (Cape Town)": ["所有"],
+                "德班 (Durban)": ["所有"],
+                "比勒陀利亚 (Pretoria)": ["所有"],
+            }
+        },
+        "埃及": {
+            "en": "Egypt",
+            "cities": {
+                "开罗 (Cairo)": ["所有", "新开罗", "十月六日城"],
+                "亚历山大 (Alexandria)": ["所有"],
+            }
+        },
+        "尼日利亚": {
+            "en": "Nigeria",
+            "cities": {
+                "拉各斯 (Lagos)": ["所有", "维多利亚岛", "伊科伊"],
+                "阿布贾 (Abuja)": ["所有"],
+                "哈科特港 (Port Harcourt)": ["所有"],
+            }
+        },
+        "肯尼亚": {
+            "en": "Kenya",
+            "cities": {
+                "内罗毕 (Nairobi)": ["所有"],
+                "蒙巴萨 (Mombasa)": ["所有"],
+            }
+        },
+        "加纳": {
+            "en": "Ghana",
+            "cities": {
+                "阿克拉 (Accra)": ["所有"],
+                "库马西 (Kumasi)": ["所有"],
+            }
+        },
+        "摩洛哥": {
+            "en": "Morocco",
+            "cities": {
+                "卡萨布兰卡 (Casablanca)": ["所有"],
+                "拉巴特 (Rabat)": ["所有"],
+                "马拉喀什 (Marrakech)": ["所有"],
+            }
+        },
+        "突尼斯": {
+            "en": "Tunisia",
+            "cities": {
+                "突尼斯 (Tunis)": ["所有"],
+            }
+        },
+        "阿尔及利亚": {
+            "en": "Algeria",
+            "cities": {
+                "阿尔及尔 (Algiers)": ["所有"],
+            }
+        },
+        "坦桑尼亚": {
+            "en": "Tanzania",
+            "cities": {
+                "达累斯萨拉姆 (Dar es Salaam)": ["所有"],
+            }
+        },
+        "埃塞俄比亚": {
+            "en": "Ethiopia",
+            "cities": {
+                "亚的斯亚贝巴 (Addis Ababa)": ["所有"],
+            }
+        },
+        "乌干达": {
+            "en": "Uganda",
+            "cities": {
+                "坎帕拉 (Kampala)": ["所有"],
+            }
+        },
+        "安哥拉": {
+            "en": "Angola",
+            "cities": {
+                "罗安达 (Luanda)": ["所有"],
+            }
+        },
+        "科特迪瓦": {
+            "en": "Ivory Coast",
+            "cities": {
+                "阿比让 (Abidjan)": ["所有"],
+            }
+        },
+        "塞内加尔": {
+            "en": "Senegal",
+            "cities": {
+                "达喀尔 (Dakar)": ["所有"],
+            }
+        },
+        "毛里求斯": {
+            "en": "Mauritius",
+            "cities": {
+                "路易港 (Port Louis)": ["所有"],
+            }
+        },
+        "津巴布韦": {
+            "en": "Zimbabwe",
+            "cities": {
+                "哈拉雷 (Harare)": ["所有"],
+            }
+        },
+        "赞比亚": {
+            "en": "Zambia",
+            "cities": {
+                "卢萨卡 (Lusaka)": ["所有"],
+            }
+        },
+        "莫桑比克": {
+            "en": "Mozambique",
+            "cities": {
+                "马普托 (Maputo)": ["所有"],
+            }
+        },
+        "苏丹": {
+            "en": "Sudan",
+            "cities": {
+                "喀土穆 (Khartoum)": ["所有"],
+            }
+        },
+        "利比亚": {
+            "en": "Libya",
+            "cities": {
+                "的黎波里 (Tripoli)": ["所有"],
+            }
+        },
+        "刚果金": {
+            "en": "DR Congo",
+            "cities": {
+                "金沙萨 (Kinshasa)": ["所有"],
+            }
+        },
+        "喀麦隆": {
+            "en": "Cameroon",
+            "cities": {
+                "杜阿拉 (Douala)": ["所有"],
+                "雅温得 (Yaounde)": ["所有"],
+            }
+        },
+    },
+    "大洋洲": {
+        "澳大利亚": {
+            "en": "Australia",
+            "cities": {
+                "悉尼 (Sydney)": ["所有", "市中心", "北悉尼", "帕拉马塔"],
+                "墨尔本 (Melbourne)": ["所有", "市中心", "南岸", "码头区"],
+                "布里斯班 (Brisbane)": ["所有"],
+                "珀斯 (Perth)": ["所有"],
+                "阿德莱德 (Adelaide)": ["所有"],
+                "黄金海岸 (Gold Coast)": ["所有"],
+                "堪培拉 (Canberra)": ["所有"],
+                "纽卡斯尔 (Newcastle)": ["所有"],
+            }
+        },
+        "新西兰": {
+            "en": "New Zealand",
+            "cities": {
+                "奥克兰 (Auckland)": ["所有", "市中心", "北岸", "曼努考"],
+                "惠灵顿 (Wellington)": ["所有"],
+                "基督城 (Christchurch)": ["所有"],
+                "汉密尔顿 (Hamilton)": ["所有"],
+            }
+        },
+        "巴布亚新几内亚": {
+            "en": "Papua New Guinea",
+            "cities": {
+                "莫尔兹比港 (Port Moresby)": ["所有"],
+            }
+        },
+        "斐济": {
+            "en": "Fiji",
+            "cities": {
+                "苏瓦 (Suva)": ["所有"],
+            }
+        },
+    },
+}
+
 INDUSTRY_KEYWORDS = {
     "电子产品": [
         {"en": "electronics supplier", "zh": "电子产品供应商"},
