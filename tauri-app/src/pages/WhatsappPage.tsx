@@ -13,6 +13,7 @@ export default function WhatsappPage() {
   const [csvPath, setCsvPath] = useState('')
   const [phonesPreview, setPhonesPreview] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const refreshUpstream = useCallback(async () => {
     try {
@@ -30,6 +31,7 @@ export default function WhatsappPage() {
   useEffect(() => {
     void refreshUpstream()
     const id = window.setInterval(() => void refreshUpstream(), 4000)
+    setLoading(false)
     return () => window.clearInterval(id)
   }, [refreshUpstream])
 
@@ -91,6 +93,15 @@ export default function WhatsappPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="form-page whatsapp-page">
+        <h1 className="page-title">WhatsApp</h1>
+        <p className="loading-text">加载中</p>
+      </div>
+    )
+  }
+
   return (
     <div className="form-page whatsapp-page">
       <h1 className="page-title">WhatsApp</h1>
@@ -116,7 +127,7 @@ export default function WhatsappPage() {
         </a>
       </div>
       {probe ? (
-        <pre className="page-muted" style={{ marginTop: '0.75rem', whiteSpace: 'pre-wrap' }}>
+        <pre className="wa-json-pre" style={{ marginTop: '0.75rem' }}>
           {probe}
         </pre>
       ) : null}
@@ -146,7 +157,14 @@ export default function WhatsappPage() {
             选文件
           </button>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void loadPhones()}>
-            加载号码
+            {busy ? (
+              <>
+                <span className="spinner" />
+                加载中…
+              </>
+            ) : (
+              '加载号码'
+            )}
           </button>
         </div>
         {phonesPreview ? (

@@ -146,7 +146,14 @@ export function KeywordLibraryModal({ open, onClose, onApplyToEngine }: Props) {
       return
     }
     const items = [...selected].sort((a, b) => a - b).map((i) => rows[i])
-    const text = items.map((x) => x.en.trim()).filter(Boolean).join('\n')
+    const text = items
+      .map((x) => {
+        const en = x.en.trim()
+        const zh = x.zh?.trim()
+        return zh ? `${zh} | ${en}` : en
+      })
+      .filter(Boolean)
+      .join('\n')
     onApplyToEngine?.(text)
     onClose()
   }

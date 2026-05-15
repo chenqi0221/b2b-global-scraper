@@ -14,6 +14,7 @@ export default function DataPreviewPage() {
   const [path, setPath] = useState('')
   const [preview, setPreview] = useState<CsvPreview | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +33,8 @@ export default function DataPreviewPage() {
         }
       } catch {
         /* ignore */
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     })()
     return () => {
@@ -62,6 +65,15 @@ export default function DataPreviewPage() {
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="form-page">
+        <h1 className="page-title">数据预览</h1>
+        <p className="loading-text">加载中</p>
+      </div>
+    )
   }
 
   return (
@@ -120,7 +132,11 @@ export default function DataPreviewPage() {
           当前：<code>{path}</code>
         </p>
       ) : null}
-      {err ? <p className="page-muted" style={{ color: '#b91c1c' }}>{err}</p> : null}
+      {err ? (
+        <div className="test-status err" style={{ marginBottom: '0.75rem' }}>
+          {err}
+        </div>
+      ) : null}
 
       {preview && preview.columns.length > 0 ? (
         <div className="preview-table-wrap">
@@ -143,6 +159,8 @@ export default function DataPreviewPage() {
             </tbody>
           </table>
         </div>
+      ) : path ? (
+        <p className="page-muted">暂无数据</p>
       ) : null}
     </div>
   )

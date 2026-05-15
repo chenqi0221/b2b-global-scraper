@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { KeywordLibraryModal } from '../components/KeywordLibraryModal'
 import { API_BASE } from '../config/api'
 import { isTauri, pickCsvFile, pickDirectory, pickDirectoryBrowser, revealPath } from '../lib/tauriBridge'
+import { useEngineStore } from '../stores/engineStore'
 import { useScraperStore } from '../stores/scraperStore'
 import type { GeoData, IndustryMap, LogEventPayload, LocationModel } from '../types/api'
 
@@ -16,26 +17,40 @@ function pathJoinRoot(root: string, rel: string): string {
 export default function EnginePage() {
   const [geo, setGeo] = useState<GeoData | null>(null)
   const [industries, setIndustries] = useState<IndustryMap | null>(null)
-  const [geoMode, setGeoMode] = useState<'select' | 'manual'>('select')
-  const [continent, setContinent] = useState('')
-  const [country, setCountry] = useState('')
-  const [city, setCity] = useState('')
-  const [district, setDistrict] = useState('所有')
-  const [manualAddress, setManualAddress] = useState('')
-  const [category, setCategory] = useState('')
-  const [kwText, setKwText] = useState('')
-  const [concurrency, setConcurrency] = useState(3)
   const [logs, setLogs] = useState<string[]>([])
   const [kwLibOpen, setKwLibOpen] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
-  const [aiSeed, setAiSeed] = useState('')
-  const [aiNum, setAiNum] = useState(7)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiMsg, setAiMsg] = useState<string | null>(null)
   const [generatedPairs, setGeneratedPairs] = useState<{ en: string; zh: string }[]>([])
   const logRef = useRef<HTMLPreElement>(null)
   const syncCsvInputRef = useRef<HTMLInputElement>(null)
+
+  // 持久化状态
+  const geoMode = useEngineStore((s) => s.geoMode)
+  const continent = useEngineStore((s) => s.continent)
+  const country = useEngineStore((s) => s.country)
+  const city = useEngineStore((s) => s.city)
+  const district = useEngineStore((s) => s.district)
+  const manualAddress = useEngineStore((s) => s.manualAddress)
+  const category = useEngineStore((s) => s.category)
+  const kwText = useEngineStore((s) => s.kwText)
+  const concurrency = useEngineStore((s) => s.concurrency)
+  const aiSeed = useEngineStore((s) => s.aiSeed)
+  const aiNum = useEngineStore((s) => s.aiNum)
+
+  const setGeoMode = useEngineStore((s) => s.setGeoMode)
+  const setContinent = useEngineStore((s) => s.setContinent)
+  const setCountry = useEngineStore((s) => s.setCountry)
+  const setCity = useEngineStore((s) => s.setCity)
+  const setDistrict = useEngineStore((s) => s.setDistrict)
+  const setManualAddress = useEngineStore((s) => s.setManualAddress)
+  const setCategory = useEngineStore((s) => s.setCategory)
+  const setKwText = useEngineStore((s) => s.setKwText)
+  const setConcurrency = useEngineStore((s) => s.setConcurrency)
+  const setAiSeed = useEngineStore((s) => s.setAiSeed)
+  const setAiNum = useEngineStore((s) => s.setAiNum)
 
   const fetchStatus = useScraperStore((s) => s.fetchStatus)
   const fetchProjectRoot = useScraperStore((s) => s.fetchProjectRoot)
@@ -111,18 +126,143 @@ export default function EnginePage() {
   const districtOptions = useMemo(() => {
     if (!geo || !continent || !country || !city) return ['所有']
     const list = geo[continent]?.[country]?.cities?.[city] ?? []
-    return ['所有', ...list.map((d) => `${d.en} (${d.zh})`)]
+    return ['所有', ...list]
   }, [geo, continent, country, city])
 
   useEffect(() => {
     if (!districtOptions.includes(district)) setDistrict('所有')
-  }, [districtOptions, district])
+  }, [districtOptions, district, setDistrict])
 
   const onCategoryChange = (cat: string) => {
     setCategory(cat)
     if (!industries || !cat) return
     const words = industries[cat]
-    if (words?.length) setKwText(words.join('\n'))
+    if (words?.length) {
+      const lines = words.map((w) => `${w.zh} | ${w.en}`)
+      setKwText(lines.join('\n'))
+    }
+  }
+
+  /** 获取国家的英文名称 */
+  const getCountryEn = (countryZh: string): string => {
+    if (!geo || !continent) return countryZh
+    return geo[continent]?.[countryZh]?.en ?? countryZh
+  }
+
+  /** 获取城市的英文名称（城市名本身就是中文，需要映射） */
+  const getCityEn = (cityZh: string): string => {
+    // 后端 location_resolve.py 会从 body.city 中提取括号内的英文
+    // 但我们的数据格式是 { "上海": [...] }，没有英文
+    // 所以需要手动映射常见城市
+    const cityMap: Record<string, string> = {
+      '上海': 'Shanghai', '北京': 'Beijing', '深圳': 'Shenzhen', '广州': 'Guangzhou',
+      '杭州': 'Hangzhou', '成都': 'Chengdu', '重庆': 'Chongqing', '武汉': 'Wuhan',
+      '南京': 'Nanjing', '天津': 'Tianjin', '苏州': 'Suzhou', '东莞': 'Dongguan',
+      '佛山': 'Foshan', '宁波': 'Ningbo', '厦门': 'Xiamen',
+      '东京': 'Tokyo', '大阪': 'Osaka', '名古屋': 'Nagoya', '横滨': 'Yokohama', '福冈': 'Fukuoka',
+      '首尔': 'Seoul', '釜山': 'Busan', '仁川': 'Incheon',
+      '孟买': 'Mumbai', '德里': 'Delhi', '班加罗尔': 'Bangalore', '钦奈': 'Chennai', '海得拉巴': 'Hyderabad', '浦那': 'Pune',
+      '台北': 'Taipei', '新北': 'New Taipei', '台中': 'Taichung', '高雄': 'Kaohsiung',
+      '伦敦': 'London', '曼彻斯特': 'Manchester', '伯明翰': 'Birmingham', '格拉斯哥': 'Glasgow', '利兹': 'Leeds',
+      '柏林': 'Berlin', '慕尼黑': 'Munich', '法兰克福': 'Frankfurt', '汉堡': 'Hamburg', '斯图加特': 'Stuttgart', '杜塞尔多夫': 'Dusseldorf',
+      '巴黎': 'Paris', '里昂': 'Lyon', '马赛': 'Marseille',
+      '米兰': 'Milan', '罗马': 'Rome',
+      '马德里': 'Madrid', '巴塞罗那': 'Barcelona', '瓦伦西亚': 'Valencia', '塞维利亚': 'Seville',
+      '阿姆斯特丹': 'Amsterdam', '鹿特丹': 'Rotterdam', '海牙': 'The Hague',
+      '布鲁塞尔': 'Brussels', '安特卫普': 'Antwerp',
+      '苏黎世': 'Zurich', '日内瓦': 'Geneva', '巴塞尔': 'Basel',
+      '维也纳': 'Vienna', '萨尔茨堡': 'Salzburg',
+      '华沙': 'Warsaw', '克拉科夫': 'Krakow',
+      '布拉格': 'Prague',
+      '布达佩斯': 'Budapest',
+      '哥本哈根': 'Copenhagen',
+      '斯德哥尔摩': 'Stockholm', '哥德堡': 'Gothenburg',
+      '赫尔辛基': 'Helsinki',
+      '奥斯陆': 'Oslo',
+      '都柏林': 'Dublin',
+      '里斯本': 'Lisbon',
+      '雅典': 'Athens',
+      '伊斯坦布尔': 'Istanbul', '安卡拉': 'Ankara', '伊兹密尔': 'Izmir',
+      '迪拜': 'Dubai', '阿布扎比': 'Abu Dhabi',
+      '利雅得': 'Riyadh', '吉达': 'Jeddah',
+      '多哈': 'Doha',
+      '科威特城': 'Kuwait City',
+      '马斯喀特': 'Muscat',
+      '麦纳麦': 'Manama',
+      '安曼': 'Amman',
+      '贝鲁特': 'Beirut',
+      '特拉维夫': 'Tel Aviv', '耶路撒冷': 'Jerusalem',
+      '开罗': 'Cairo', '亚历山大': 'Alexandria',
+      '约翰内斯堡': 'Johannesburg', '开普敦': 'Cape Town', '德班': 'Durban',
+      '拉各斯': 'Lagos',
+      '内罗毕': 'Nairobi',
+      '卡萨布兰卡': 'Casablanca',
+      '突尼斯': 'Tunis',
+      '阿尔及尔': 'Algiers',
+      '悉尼': 'Sydney', '墨尔本': 'Melbourne', '布里斯班': 'Brisbane', '珀斯': 'Perth', '阿德莱德': 'Adelaide',
+      '奥克兰': 'Auckland', '惠灵顿': 'Wellington', '基督城': 'Christchurch',
+      '纽约': 'New York', '洛杉矶': 'Los Angeles', '芝加哥': 'Chicago', '休斯顿': 'Houston', '旧金山': 'San Francisco',
+      '西雅图': 'Seattle', '波士顿': 'Boston', '迈阿密': 'Miami', '亚特兰大': 'Atlanta', '达拉斯': 'Dallas',
+      '华盛顿': 'Washington DC', '费城': 'Philadelphia', '丹佛': 'Denver', '凤凰城': 'Phoenix', '底特律': 'Detroit',
+      '多伦多': 'Toronto', '温哥华': 'Vancouver', '蒙特利尔': 'Montreal', '卡尔加里': 'Calgary',
+      '墨西哥城': 'Mexico City', '瓜达拉哈拉': 'Guadalajara', '蒙特雷': 'Monterrey',
+      '圣保罗': 'Sao Paulo', '里约热内卢': 'Rio de Janeiro', '巴西利亚': 'Brasilia',
+      '布宜诺斯艾利斯': 'Buenos Aires',
+      '圣地亚哥': 'Santiago',
+      '利马': 'Lima',
+      '波哥大': 'Bogota',
+      '加拉加斯': 'Caracas',
+      '蒙得维的亚': 'Montevideo',
+      '圣克鲁斯': 'Santa Cruz',
+      '亚松森': 'Asuncion',
+      '巴拿马城': 'Panama City',
+      '圣何塞': 'San Jose',
+      '危地马拉城': 'Guatemala City',
+      '圣萨尔瓦多': 'San Salvador',
+      '马那瓜': 'Managua',
+      '圣佩德罗苏拉': 'San Pedro Sula',
+      '圣多明各': 'Santo Domingo',
+      '哈瓦那': 'Havana',
+      '圣胡安': 'San Juan',
+      '圣乔治': 'St. George\'s',
+      '布里奇敦': 'Bridgetown',
+      '太子港': 'Port-au-Prince',
+      '金斯敦': 'Kingston',
+      '拿骚': 'Nassau',
+      '新加坡': 'Singapore',
+      '曼谷': 'Bangkok', '清迈': 'Chiang Mai',
+      '吉隆坡': 'Kuala Lumpur', '槟城': 'Penang',
+      '雅加达': 'Jakarta', '泗水': 'Surabaya',
+      '马尼拉': 'Manila', '宿务': 'Cebu',
+      '河内': 'Hanoi', '胡志明市': 'Ho Chi Minh City',
+      '金边': 'Phnom Penh',
+      '万象': 'Vientiane',
+      '仰光': 'Yangon',
+      '达卡': 'Dhaka',
+      '科伦坡': 'Colombo',
+      '加德满都': 'Kathmandu',
+      '伊斯兰堡': 'Islamabad', '卡拉奇': 'Karachi', '拉合尔': 'Lahore',
+      '新德里': 'New Delhi',
+      '科钦': 'Kochi',
+      '阿姆利则': 'Amritsar',
+      '斋浦尔': 'Jaipur',
+      '加尔各答': 'Kolkata',
+      '塔什干': 'Tashkent', '阿拉木图': 'Almaty', '阿斯塔纳': 'Astana',
+      '巴库': 'Baku',
+      '第比利斯': 'Tbilisi',
+      '埃里温': 'Yerevan',
+      '比什凯克': 'Bishkek',
+      '杜尚别': 'Dushanbe',
+      '阿什哈巴德': 'Ashgabat',
+    }
+    return cityMap[cityZh] ?? cityZh
+  }
+
+  /** 获取区域的英文名称 */
+  const getDistrictEn = (districtZh: string): string => {
+    if (districtZh === '所有') return getCityEn(city)
+    // 区域目前都是中文，直接返回中文（Google Maps 支持中文搜索区域）
+    return districtZh
   }
 
   async function resolveLocation(): Promise<LocationModel | null> {
@@ -135,26 +275,40 @@ export default function EnginePage() {
       if (!r.ok) return null
       return (await r.json()) as LocationModel
     }
+    // 传给后端的是英文
+    const countryEn = getCountryEn(country)
+    const cityEn = getCityEn(city)
+    const districtEn = getDistrictEn(district)
     const r = await fetch(`${API_BASE}/api/meta/resolve-location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mode: 'select',
         continent,
-        country,
-        city,
-        district,
+        country: countryEn,
+        city: cityEn,
+        district: districtEn,
       }),
     })
     if (!r.ok) return null
     return (await r.json()) as LocationModel
   }
 
-  async function onStart() {
-    const kws = kwText
+  /** 从显示文本中提取英文关键词 */
+  const extractEnglishKeywords = (text: string): string[] => {
+    return text
       .split('\n')
       .map((s) => s.trim())
       .filter(Boolean)
+      .map((line) => {
+        const parts = line.split('|')
+        return parts.length >= 2 ? parts[parts.length - 1].trim() : line.trim()
+      })
+      .filter(Boolean)
+  }
+
+  async function onStart() {
+    const kws = extractEnglishKeywords(kwText)
     if (!kws.length) {
       window.alert('请输入或选择行业关键词')
       return
@@ -319,7 +473,7 @@ export default function EnginePage() {
       const j = (await r.json()) as { keywords: { en: string; zh: string }[] }
       const kw = j.keywords ?? []
       setGeneratedPairs(kw)
-      const lines = kw.map((k) => k.en).join('\n')
+      const lines = kw.map((k) => `${k.zh} | ${k.en}`).join('\n')
       setKwText((prev) => {
         const existing = new Set(prev.split('\n').map((s) => s.trim()).filter(Boolean))
         const newLines = lines.split('\n').filter((l) => !existing.has(l))
@@ -360,7 +514,13 @@ export default function EnginePage() {
       window.alert('关键词列表为空')
       return
     }
-    const pairs = lines.map((en) => ({ en, zh: '' }))
+    const pairs = lines.map((line) => {
+      const parts = line.split('|')
+      if (parts.length >= 2) {
+        return { en: parts[parts.length - 1].trim(), zh: parts[0].trim() }
+      }
+      return { en: line, zh: '' }
+    })
     try {
       const r = await fetch(`${API_BASE}/api/keywords/library/append`, {
         method: 'POST',
@@ -388,18 +548,18 @@ export default function EnginePage() {
       <h1 className="page-title">获客引擎</h1>
       {statusError ? <p className="engine-banner error">状态同步失败：{statusError}</p> : null}
 
-      <section className="engine-cards">
-        <div className="stat-card">
-          <div className="stat-label">今日已抓取</div>
-          <div className="stat-value">{status?.total_found ?? '—'}</div>
+      <section className="engine-stats">
+        <div className="engine-stat-card">
+          <div className="engine-stat-label">今日已抓取</div>
+          <div className="engine-stat-value">{status?.total_found ?? '—'}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">包含邮箱数</div>
-          <div className="stat-value">{status?.email_found ?? '—'}</div>
+        <div className="engine-stat-card">
+          <div className="engine-stat-label">包含邮箱数</div>
+          <div className="engine-stat-value">{status?.email_found ?? '—'}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">已同步云端</div>
-          <div className="stat-value">{status?.synced_count ?? '—'}</div>
+        <div className="engine-stat-card">
+          <div className="engine-stat-label">已同步云端</div>
+          <div className="engine-stat-value">{status?.synced_count ?? '—'}</div>
         </div>
       </section>
 
@@ -500,16 +660,6 @@ export default function EnginePage() {
               </div>
             ) : null}
           </div>
-          <label className="field inline concurrency-field">
-            <span>并发数</span>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={concurrency}
-              onChange={(e) => setConcurrency(Number(e.target.value) || 1)}
-            />
-          </label>
         </section>
 
         <section className="engine-panel">
@@ -623,15 +773,35 @@ export default function EnginePage() {
             <button type="button" className="btn danger" disabled={!running} onClick={() => void onStop()}>
               停止
             </button>
+            <label className="field inline concurrency-field">
+              <span>并发数</span>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={concurrency}
+                onChange={(e) => setConcurrency(Number(e.target.value) || 1)}
+              />
+            </label>
           </div>
           {status?.output_dir ? (
-            <p className="engine-hint">
-              输出目录：<code>{status.output_dir}</code>
-            </p>
+            <div className="path-box">
+              <span className="path-label">输出目录</span>
+              <code className="path-value">{status.output_dir}</code>
+              <button type="button" className="btn path-open-btn" onClick={() => void revealPath(status.output_dir!)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                打开
+              </button>
+            </div>
           ) : projectRoot ? (
-            <p className="engine-hint">
-              项目根：<code>{projectRoot}</code>
-            </p>
+            <div className="path-box">
+              <span className="path-label">项目根</span>
+              <code className="path-value">{projectRoot}</code>
+              <button type="button" className="btn path-open-btn" onClick={() => void revealPath(projectRoot)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                打开
+              </button>
+            </div>
           ) : null}
         </section>
       </div>

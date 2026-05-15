@@ -1,85 +1,94 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
+
+import { useTheme } from '../hooks/useTheme'
 
 import './AppLayout.css'
 
 const nav = [
   { to: '/engine', label: '获客引擎', icon: '🔍' },
-  { to: '/data', label: '数据预览', icon: '📄' },
-  { to: '/ai', label: 'AI 策略', icon: '🤖' },
-  { to: '/sync', label: '同步设置', icon: '☁️' },
+  { to: '/preview', label: '数据预览', icon: '📄' },
+  { to: '/strategy', label: 'AI 策略', icon: '🤖' },
+  { to: '/settings', label: '同步设置', icon: '☁️' },
   { to: '/whatsapp', label: 'WhatsApp', icon: '💬' },
 ]
 
-export function AppLayout() {
-  const [navOpen, setNavOpen] = useState(false)
-  const location = useLocation()
-
-  useEffect(() => {
-    setNavOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
-    if (!navOpen) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [navOpen])
+export default function AppLayout() {
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const { theme, toggle } = useTheme()
 
   return (
-    <div className={`app-root${navOpen ? ' app-root--nav-open' : ''}`}>
-      <header className="app-topbar">
-        <button
-          type="button"
-          className="app-menu-btn"
-          aria-expanded={navOpen}
-          aria-controls="app-sidebar"
-          onClick={() => setNavOpen((v) => !v)}
-        >
-          <span className="app-menu-icon" aria-hidden>
-            ☰
-          </span>
-          <span>菜单</span>
-        </button>
-        <span className="app-topbar-title">B2B Global 获客系统</span>
-      </header>
+    <div className={`app-layout ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* 移动端遮罩 */}
+      {drawerOpen ? <div className="sidebar-overlay" onClick={() => setDrawerOpen(false)} /> : null}
 
-      <button
-        type="button"
-        className="app-backdrop"
-        aria-label="关闭菜单"
-        tabIndex={-1}
-        onClick={() => setNavOpen(false)}
-      />
-
-      <aside id="app-sidebar" className="app-sidebar">
-        <div className="app-brand">
-          <div className="app-brand-title">B2B Global</div>
-          <div className="app-brand-sub">获客系统</div>
+      {/* 侧边栏 */}
+      <aside className={`sidebar ${drawerOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <span className="sidebar-brand-icon">🌐</span>
+            {!collapsed && (
+              <div className="sidebar-brand-text">
+                <div className="sidebar-brand-title">B2B Global</div>
+                <div className="sidebar-brand-subtitle">获客系统</div>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+          >
+            {collapsed ? '→' : '←'}
+          </button>
         </div>
-        <nav className="app-nav" aria-label="主导航">
+
+        <nav className="sidebar-nav">
           {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              className={({ isActive }) =>
-                `app-nav-link${isActive ? ' app-nav-link-active' : ''}`
-              }
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+              onClick={() => setDrawerOpen(false)}
+              title={collapsed ? item.label : undefined}
             >
-              <span className="app-nav-ico" aria-hidden>
-                {item.icon}
-              </span>
-              {item.label}
+              <span className="sidebar-link-icon">{item.icon}</span>
+              {!collapsed && <span className="sidebar-link-text">{item.label}</span>}
             </NavLink>
           ))}
         </nav>
+
+        <div className="sidebar-footer">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggle}
+            title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+          >
+            <span className="theme-toggle-icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+            {!collapsed && <span className="theme-toggle-text">{theme === 'dark' ? '浅色模式' : '深色模式'}</span>}
+          </button>
+        </div>
       </aside>
 
-      <div className="app-main">
-        <Outlet />
-      </div>
+      {/* 主内容区 */}
+      <main className="main">
+        <header className="topbar">
+          <button
+            type="button"
+            className="menu-btn"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="打开菜单"
+          >
+            ☰
+          </button>
+        </header>
+        <div className="content">
+          <Outlet />
+        </div>
+      </main>
     </div>
   )
 }

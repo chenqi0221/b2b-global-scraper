@@ -52,3 +52,6 @@ fresh_pack/
 test_doubao*.py
 test_import.csv
 lengdangb2b_total.csv
+
+# Tauri bundled binaries (contains Python runtime, torch, etc.)
+tauri-app/src-tauri/binaries/

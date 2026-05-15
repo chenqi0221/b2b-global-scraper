@@ -22,15 +22,17 @@ export type LogEventPayload = {
   message: string
 }
 
-export type GeoCityEntry = { en: string; zh: string }
+/** 后端 data.py 中的地理数据格式 */
+export type GeoCountry = {
+  en: string
+  cities: Record<string, string[]>
+}
 
-export type GeoData = Record<
-  string,
-  Record<string, { en: string; cities: Record<string, GeoCityEntry[]> }>
->
+export type GeoData = Record<string, Record<string, GeoCountry>>
 
-/** `/api/meta/industries` → 与根目录 `data.INDUSTRY_KEYWORDS` 一致：行业名 → 英文关键词列表 */
-export type IndustryMap = Record<string, string[]>
+/** `/api/meta/industries` → 与根目录 `data.INDUSTRY_KEYWORDS` 一致：行业名 → 关键词列表(含中英文) */
+export type KeywordItem = { en: string; zh: string }
+export type IndustryMap = Record<string, KeywordItem[]>
 
 export type KeywordRow = { en: string; zh: string }
 

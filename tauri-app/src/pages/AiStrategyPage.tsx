@@ -50,7 +50,14 @@ export default function AiStrategyPage() {
     }
   }
 
-  if (loading) return <p className="page-muted">加载中…</p>
+  if (loading) {
+    return (
+      <div className="form-page">
+        <h1 className="page-title">AI 策略</h1>
+        <p className="loading-text">加载中</p>
+      </div>
+    )
+  }
 
   return (
     <div className="form-page">
@@ -61,11 +68,29 @@ export default function AiStrategyPage() {
       <section className="form-card">
         <label className="field">
           <span>关键词生成提示词模板</span>
-          <textarea className="prompt-area" value={prompt} onChange={(e) => setPrompt(e.target.value)} spellCheck={false} />
+          <textarea
+            className="prompt-area"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            spellCheck={false}
+            placeholder="在此输入 AI 关键词生成提示词模板..."
+          />
         </label>
         <div className="form-actions">
-          <button type="button" className="btn primary" disabled={saving || !prompt.trim()} onClick={() => void onSave()}>
-            {saving ? '保存中…' : '保存'}
+          <button
+            type="button"
+            className="btn primary"
+            disabled={saving || !prompt.trim()}
+            onClick={() => void onSave()}
+          >
+            {saving ? (
+              <>
+                <span className="spinner" />
+                保存中…
+              </>
+            ) : (
+              '保存'
+            )}
           </button>
         </div>
       </section>

@@ -152,8 +152,22 @@ export default function SyncSettingsPage() {
     }
   }
 
-  if (loading) return <p className="page-muted">加载中…</p>
-  if (!form) return <p className="page-muted">无法读取配置，请确认后端已启动。</p>
+  if (loading) {
+    return (
+      <div className="form-page">
+        <h1 className="page-title">同步设置</h1>
+        <p className="loading-text">加载中</p>
+      </div>
+    )
+  }
+  if (!form) {
+    return (
+      <div className="form-page">
+        <h1 className="page-title">同步设置</h1>
+        <p className="page-muted">无法读取配置，请确认后端已启动。</p>
+      </div>
+    )
+  }
 
   const patch =
     <K extends keyof EnvSettingsView>(k: K) =>
@@ -170,7 +184,7 @@ export default function SyncSettingsPage() {
       <section className="form-card">
         <label className="field">
           <span>HTTP 代理</span>
-          <input type="text" value={form.HTTP_PROXY} onChange={(e) => patch('HTTP_PROXY')(e.target.value)} />
+          <input type="text" value={form.HTTP_PROXY} onChange={(e) => patch('HTTP_PROXY')(e.target.value)} placeholder="http://127.0.0.1:8080" />
         </label>
         <label className="field">
           <span>Google Sheets 表格 ID</span>
@@ -178,6 +192,7 @@ export default function SyncSettingsPage() {
             type="text"
             value={form.GOOGLE_SHEETS_ID}
             onChange={(e) => patch('GOOGLE_SHEETS_ID')(e.target.value)}
+            placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
           />
         </label>
         <label className="field">
@@ -187,6 +202,7 @@ export default function SyncSettingsPage() {
             value={form.GEMINI_API_KEY}
             onChange={(e) => patch('GEMINI_API_KEY')(e.target.value)}
             autoComplete="off"
+            placeholder="AIzaSy..."
           />
         </label>
         <label className="field">
@@ -196,11 +212,12 @@ export default function SyncSettingsPage() {
             value={form.DOUBAO_API_KEY}
             onChange={(e) => patch('DOUBAO_API_KEY')(e.target.value)}
             autoComplete="off"
+            placeholder="Bearer ..."
           />
         </label>
         <label className="field">
           <span>豆包 Base URL</span>
-          <input type="text" value={form.DOUBAO_BASE_URL} onChange={(e) => patch('DOUBAO_BASE_URL')(e.target.value)} />
+          <input type="text" value={form.DOUBAO_BASE_URL} onChange={(e) => patch('DOUBAO_BASE_URL')(e.target.value)} placeholder="https://ark.cn-beijing.volces.com/api/v3" />
         </label>
         <label className="field">
           <span>豆包 Model Endpoint</span>
@@ -208,17 +225,25 @@ export default function SyncSettingsPage() {
             type="text"
             value={form.DOUBAO_MODEL_ENDPOINT}
             onChange={(e) => patch('DOUBAO_MODEL_ENDPOINT')(e.target.value)}
+            placeholder="ep-2024..."
           />
         </label>
         <div className="form-actions" style={{ marginTop: 0, marginBottom: '0.75rem' }}>
           <button type="button" className="btn primary" disabled={testing} onClick={() => void onTestLLM()}>
-            {testing ? '测试中…' : '测试大模型连接'}
+            {testing ? (
+              <>
+                <span className="spinner" />
+                测试中…
+              </>
+            ) : (
+              '测试大模型连接'
+            )}
           </button>
         </div>
         {testStatus ? (
-          <p className="page-muted" style={{ color: testStatus.ok ? '#16a34a' : '#b91c1c', whiteSpace: 'pre-wrap' }}>
+          <div className={`test-status ${testStatus.ok ? 'ok' : 'err'}`}>
             {testStatus.msg}
-          </p>
+          </div>
         ) : null}
         <label className="field inline">
           <input type="checkbox" checked={form.SYNC_BY_DATE} onChange={(e) => patch('SYNC_BY_DATE')(e.target.checked)} />
@@ -235,13 +260,20 @@ export default function SyncSettingsPage() {
         </label>
         <div className="form-actions">
           <button type="button" className="btn primary" disabled={saving} onClick={() => void onSave()}>
-            {saving ? '保存中…' : '保存到 .env'}
+            {saving ? (
+              <>
+                <span className="spinner" />
+                保存中…
+              </>
+            ) : (
+              '保存到 .env'
+            )}
           </button>
         </div>
       </section>
 
       <section className="form-card" style={{ marginTop: '1rem' }}>
-        <h2 style={{ fontSize: '1.05rem', margin: '0 0 0.5rem' }}>Google OAuth（Sheets / Drive）</h2>
+        <h2 className="wa-section-title">Google OAuth（Sheets / Drive）</h2>
         <p className="page-muted">
           需在项目根放置 <code>client_secret.json</code>。授权后生成 <code>token.json</code>（已由{' '}
           <code>.gitignore</code> 忽略）。详情见运行日志 SSE。
@@ -255,7 +287,14 @@ export default function SyncSettingsPage() {
         )}
         <div className="form-actions">
           <button type="button" className="btn primary" disabled={oauthBusy} onClick={() => void onOauthAuthorize()}>
-            {oauthBusy ? '授权中…' : '浏览器登录（完整授权）'}
+            {oauthBusy ? (
+              <>
+                <span className="spinner" />
+                授权中…
+              </>
+            ) : (
+              '浏览器登录（完整授权）'
+            )}
           </button>
           <button type="button" className="btn" disabled={oauthBusy} onClick={() => void onOauthRefresh()}>
             仅刷新 token
@@ -264,7 +303,11 @@ export default function SyncSettingsPage() {
             刷新状态
           </button>
         </div>
-        {oauthMsg ? <p className="page-muted" style={{ marginTop: '0.5rem', color: oauthMsg.includes('成功') || oauthMsg.includes('✓') ? '#16a34a' : oauthMsg.includes('授权中') ? undefined : '#b91c1c' }}>{oauthMsg}</p> : null}
+        {oauthMsg ? (
+          <div className={`test-status ${oauthMsg.includes('成功') || oauthMsg.includes('✓') ? 'ok' : oauthMsg.includes('授权中') ? '' : 'err'}`}>
+            {oauthMsg}
+          </div>
+        ) : null}
       </section>
     </div>
   )
