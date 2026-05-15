@@ -37,6 +37,17 @@ from backend.services.log_bus import log_bus
 
 API_VERSION = "0.2.0"
 
+# 调试：打印 sys.path 和 backend 模块路径
+import logging
+logger = logging.getLogger("main")
+logger.info(f"sys.path={sys.path}")
+try:
+    import backend
+    logger.info(f"backend module file={backend.__file__}")
+    logger.info(f"backend module path={backend.__path__}")
+except Exception as e:
+    logger.error(f"Failed to import backend: {e}")
+
 OPENAPI_TAGS = [
     {"name": "health", "description": "进程存活与版本"},
     {"name": "scraper", "description": "地图抓取启停与状态"},
@@ -104,3 +115,13 @@ app.include_router(google_oauth.router, prefix="/api/google/oauth", tags=["googl
 @app.get("/health", response_model=HealthResponse, tags=["health"])
 def health():
     return HealthResponse(version=API_VERSION, python_path=sys.executable)
+
+
+@app.get("/debug/modules")
+def debug_modules():
+    import backend.routers.keywords as kw
+    return {
+        "keywords_module_file": kw.__file__,
+        "keywords_module_path": str(kw.__path__) if hasattr(kw, '__path__') else 'N/A',
+        "sys_path": sys.path,
+    }

@@ -1,8 +1,9 @@
-"""Google OAuth / token.json 状态与授权（委托 `google_auth.get_google_auth`）。"""
+"""Google OAuth / token.json 状态与授权。"""
 
 from __future__ import annotations
 
 import asyncio
+import os
 
 from fastapi import APIRouter, HTTPException
 
@@ -48,24 +49,46 @@ def oauth_status():
 @router.post("/authorize")
 async def oauth_authorize():
     """
-    在后台线程执行 `get_google_auth()`：若需重新授权会打开本机浏览器与临时 localhost 端口。
-    请勿并发多次调用。
+    打开本机浏览器完成 Google OAuth 登录流程。
+    使用 google-auth-oauthlib 的 InstalledAppFlow，会在 localhost 上启动临时回调服务器。
     """
-    if not (project_root() / "client_secret.json").is_file():
+    client_secret_path = project_root() / "client_secret.json"
+    if not client_secret_path.is_file():
         raise HTTPException(
             status_code=400,
             detail="缺少 client_secret.json，请从 Google Cloud Console 下载 OAuth 客户端 JSON 放到项目根目录并重命名。",
         )
 
-    def run() -> None:
-        log_bus.publish("开始 Google OAuth（可能弹出浏览器）…", "info")
-        from google_auth import get_google_auth
+    token_path = project_root() / "token.json"
 
-        get_google_auth()
-        log_bus.publish("Google OAuth 完成，token.json 已更新。", "info")
+    def run() -> bool:
+        from config import HTTP_PROXY
 
-    await asyncio.to_thread(run)
-    return {"ok": True}
+        if HTTP_PROXY:
+            os.environ["HTTPS_PROXY"] = HTTP_PROXY
+            os.environ["HTTP_PROXY"] = HTTP_PROXY
+
+        log_bus.publish("开始 Google OAuth 流程…", "info")
+        try:
+            from google_auth_oauthlib.flow import InstalledAppFlow
+
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(client_secret_path), _SCOPES
+            )
+            creds = flow.run_local_server(
+                port=0,
+                open_browser=True,
+            )
+            with open(token_path, "w", encoding="utf-8") as f:
+                f.write(creds.to_json())
+            log_bus.publish("Google OAuth 完成，token.json 已更新。", "info")
+            return True
+        except Exception as e:
+            log_bus.publish(f"Google OAuth 失败: {e}", "error")
+            return False
+
+    ok = await asyncio.to_thread(run)
+    return {"ok": ok}
 
 
 @router.post("/refresh")

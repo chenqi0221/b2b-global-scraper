@@ -30,6 +30,25 @@ export async function pickDirectory(): Promise<string | null> {
   return Array.isArray(selected) ? (selected[0] ?? null) : selected
 }
 
+export async function pickDirectoryBrowser(): Promise<File[]> {
+  if (typeof window === 'undefined' || typeof (window as any).showDirectoryPicker !== 'function') {
+    return []
+  }
+  try {
+    const dirHandle = await (window as any).showDirectoryPicker({ mode: 'read' })
+    const files: File[] = []
+    for await (const [name, handle] of (dirHandle as any).entries()) {
+      if (name.endsWith('.csv') && (handle as any).kind === 'file') {
+        const file = await (handle as any).getFile()
+        files.push(file)
+      }
+    }
+    return files
+  } catch {
+    return []
+  }
+}
+
 export async function revealPath(path: string): Promise<void> {
   if (!isTauri()) {
     window.alert('请在 Tauri 桌面版中使用「在资源管理器中打开」')

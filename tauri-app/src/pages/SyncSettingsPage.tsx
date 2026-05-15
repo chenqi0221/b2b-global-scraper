@@ -11,6 +11,7 @@ export default function SyncSettingsPage() {
   const [form, setForm] = useState<EnvSettingsView | null>(null)
   const [oauth, setOauth] = useState<OauthStatus | null>(null)
   const [oauthBusy, setOauthBusy] = useState(false)
+  const [oauthMsg, setOauthMsg] = useState<string | null>(null)
 
   const loadOauth = async () => {
     try {
@@ -63,31 +64,45 @@ export default function SyncSettingsPage() {
   async function onOauthAuthorize() {
     if (!window.confirm('将打开系统浏览器完成 Google 登录，完成后请返回本应用。是否继续？')) return
     setOauthBusy(true)
+    setOauthMsg(null)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 120000)
     try {
-      const r = await fetch(`${API_BASE}/api/google/oauth/authorize`, { method: 'POST' })
+      const r = await fetch(`${API_BASE}/api/google/oauth/authorize`, {
+        method: 'POST',
+        signal: controller.signal,
+      })
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; detail?: string }
       if (!r.ok) {
-        window.alert(typeof j.detail === 'string' ? j.detail : `失败 HTTP ${r.status}`)
+        const detail = typeof j.detail === 'string' ? j.detail : `失败 HTTP ${r.status}`
+        setOauthMsg(`授权失败: ${detail}`)
         return
       }
-      window.alert(j.ok ? '授权流程已结束（请查看运行日志确认）' : '未完成')
-      void loadOauth()
+      setOauthMsg(j.ok ? '授权完成，正在更新 token 状态…' : '授权未完成')
+      await loadOauth()
+      setOauthMsg('授权成功 ✓')
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e))
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setOauthMsg('授权超时（超过 2 分钟），请重试')
+      } else {
+        setOauthMsg(e instanceof TypeError ? '后端无响应，请确认程序已启动' : `授权出错: ${e instanceof Error ? e.message : String(e)}`)
+      }
     } finally {
+      clearTimeout(timeout)
       setOauthBusy(false)
     }
   }
 
   async function onOauthRefresh() {
     setOauthBusy(true)
+    setOauthMsg(null)
     try {
       const r = await fetch(`${API_BASE}/api/google/oauth/refresh`, { method: 'POST' })
       const j = (await r.json()) as { ok?: boolean }
-      window.alert(j.ok ? 'token 已刷新' : '刷新失败或无 refresh_token，请重新授权')
+      setOauthMsg(j.ok ? 'token 已刷新 ✓' : '刷新失败或无 refresh_token，请重新授权')
       void loadOauth()
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e))
+      setOauthMsg(e instanceof TypeError ? '后端无响应，请确认程序已启动' : `刷新出错: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setOauthBusy(false)
     }
@@ -186,7 +201,7 @@ export default function SyncSettingsPage() {
         )}
         <div className="form-actions">
           <button type="button" className="btn primary" disabled={oauthBusy} onClick={() => void onOauthAuthorize()}>
-            浏览器登录（完整授权）
+            {oauthBusy ? '授权中…' : '浏览器登录（完整授权）'}
           </button>
           <button type="button" className="btn" disabled={oauthBusy} onClick={() => void onOauthRefresh()}>
             仅刷新 token
@@ -195,6 +210,7 @@ export default function SyncSettingsPage() {
             刷新状态
           </button>
         </div>
+        {oauthMsg ? <p className="page-muted" style={{ marginTop: '0.5rem', color: oauthMsg.includes('成功') || oauthMsg.includes('✓') ? '#16a34a' : oauthMsg.includes('授权中') ? undefined : '#b91c1c' }}>{oauthMsg}</p> : null}
       </section>
     </div>
   )

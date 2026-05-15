@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { KeywordLibraryModal } from '../components/KeywordLibraryModal'
 import { API_BASE } from '../config/api'
-import { isTauri, pickCsvFile, pickDirectory, revealPath } from '../lib/tauriBridge'
+import { isTauri, pickCsvFile, pickDirectory, pickDirectoryBrowser, revealPath } from '../lib/tauriBridge'
 import { useScraperStore } from '../stores/scraperStore'
 import type { GeoData, IndustryMap, LogEventPayload, LocationModel } from '../types/api'
 
@@ -27,6 +27,13 @@ export default function EnginePage() {
   const [concurrency, setConcurrency] = useState(3)
   const [logs, setLogs] = useState<string[]>([])
   const [kwLibOpen, setKwLibOpen] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+  const [aiSeed, setAiSeed] = useState('')
+  const [aiNum, setAiNum] = useState(7)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiMsg, setAiMsg] = useState<string | null>(null)
+  const [generatedPairs, setGeneratedPairs] = useState<{ en: string; zh: string }[]>([])
   const logRef = useRef<HTMLPreElement>(null)
   const syncCsvInputRef = useRef<HTMLInputElement>(null)
 
@@ -218,22 +225,41 @@ export default function EnginePage() {
   }
 
   async function onAggregateSync() {
-    let dir = await pickDirectory()
-    if (!dir) {
-      const t = window.prompt('请输入项目根下的汇总目录绝对路径（浏览器调试用）')
-      if (!t?.trim()) return
-      dir = t.trim()
+    if (isTauri()) {
+      const dir = await pickDirectory()
+      if (!dir) return
+      const r = await fetch(`${API_BASE}/api/sync/aggregate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dir_path: dir,
+          target_title: 'lengdangb2b',
+          by_date: false,
+          conflict_resolution: 'keep_latest',
+        }),
+      })
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; detail?: string }
+      if (!r.ok) {
+        window.alert(typeof j.detail === 'string' ? j.detail : `汇总失败 HTTP ${r.status}`)
+        return
+      }
+      window.alert(j.ok ? '汇总同步完成' : '汇总同步未完成')
+      return
     }
-    const r = await fetch(`${API_BASE}/api/sync/aggregate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dir_path: dir,
-        target_title: 'lengdangb2b',
-        by_date: false,
-        conflict_resolution: 'keep_latest',
-      }),
-    })
+
+    /* 浏览器模式：弹出目录选择器，自动上传 CSV 并汇总 */
+    const files = await pickDirectoryBrowser()
+    if (files.length === 0) return
+    const fd = new FormData()
+    for (const f of files) {
+      if (f.name.endsWith('.csv')) fd.append('files', f)
+    }
+    if (!fd.has('files')) {
+      window.alert('选择的目录中没有 CSV 文件')
+      return
+    }
+    fd.append('target_title', 'lengdangb2b')
+    const r = await fetch(`${API_BASE}/api/sync/aggregate-files`, { method: 'POST', body: fd })
     const j = (await r.json().catch(() => ({}))) as { ok?: boolean; detail?: string }
     if (!r.ok) {
       window.alert(typeof j.detail === 'string' ? j.detail : `汇总失败 HTTP ${r.status}`)
@@ -243,9 +269,19 @@ export default function EnginePage() {
   }
 
   async function onTestProxy() {
-    const r = await fetch(`${API_BASE}/api/system/test-proxy`, { method: 'POST' })
-    const j = (await r.json().catch(() => ({}))) as { ok?: boolean }
-    window.alert(j.ok ? '代理探测成功' : '代理探测失败，请看运行日志')
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const r = await fetch(`${API_BASE}/api/system/test-proxy`, { method: 'POST' })
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean }
+      setTestResult(j.ok ? '代理测试成功 ✓' : '代理测试失败，请检查运行日志')
+    } catch (e) {
+      setTestResult(e instanceof TypeError && e.message === 'Failed to fetch'
+        ? '后端无响应，请确认程序已启动'
+        : `测试出错: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setTesting(false)
+    }
   }
 
   async function onRevealOutput() {
@@ -262,6 +298,56 @@ export default function EnginePage() {
       await revealPath(target)
     } catch (e) {
       window.alert(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function onAiGenerate() {
+    if (!aiSeed.trim()) {
+      window.alert('请输入 AI 种子 / 行业描述')
+      return
+    }
+    setAiBusy(true)
+    setAiMsg(null)
+    setGeneratedPairs([])
+    try {
+      const r = await fetch(`${API_BASE}/api/keywords/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seed: aiSeed.trim(), num: aiNum }),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const j = (await r.json()) as { keywords: { en: string; zh: string }[] }
+      const kw = j.keywords ?? []
+      setGeneratedPairs(kw)
+      const lines = kw.map((k) => k.en).join('\n')
+      setKwText((prev) => {
+        const existing = new Set(prev.split('\n').map((s) => s.trim()).filter(Boolean))
+        const newLines = lines.split('\n').filter((l) => !existing.has(l))
+        return prev + (prev && newLines.length ? '\n' : '') + newLines.join('\n')
+      })
+      setAiMsg(`生成了 ${kw.length} 个关键词`)
+    } catch (e) {
+      setAiMsg(e instanceof Error ? e.message : '生成失败')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  async function onSaveToLibrary() {
+    if (!generatedPairs.length) return
+    setAiBusy(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/keywords/library/append`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generatedPairs),
+      })
+      const j = (await r.json()) as { ok?: boolean; added?: number }
+      setAiMsg(j.ok ? `已存入种子库: ${j.added ?? generatedPairs.length} 条` : '存入失败')
+    } catch (e) {
+      setAiMsg(e instanceof Error ? e.message : '存入失败')
+    } finally {
+      setAiBusy(false)
     }
   }
 
@@ -322,6 +408,31 @@ export default function EnginePage() {
               关键词库…
             </button>
           </div>
+          <div className="engine-ai-gen">
+            <input
+              placeholder="AI 种子词"
+              value={aiSeed}
+              onChange={(e) => setAiSeed(e.target.value)}
+              disabled={aiBusy}
+            />
+            <input
+              type="number"
+              min={1}
+              value={aiNum}
+              onChange={(e) => setAiNum(Number(e.target.value) || 7)}
+              disabled={aiBusy}
+              style={{ width: 70 }}
+            />
+            <button type="button" className="btn" disabled={aiBusy} onClick={() => void onAiGenerate()}>
+              {aiBusy ? 'AI 生成中…' : 'AI 生成'}
+            </button>
+            {generatedPairs.length > 0 && (
+              <button type="button" className="btn primary" disabled={aiBusy} onClick={() => void onSaveToLibrary()}>
+                存入种子库
+              </button>
+            )}
+          </div>
+          {aiMsg ? <p className={`engine-hint ${(aiMsg.startsWith('生成了') || aiMsg.startsWith('已存入')) ? 'engine-success' : 'engine-error'}`}>{aiMsg}</p> : null}
           <label className="field inline">
             <span>并发数</span>
             <input
@@ -475,13 +586,14 @@ export default function EnginePage() {
           <button type="button" className="btn" onClick={() => void onAggregateSync()}>
             汇总目录同步
           </button>
-          <button type="button" className="btn" onClick={() => void onTestProxy()}>
+          <button type="button" className="btn" disabled={testing} onClick={() => void onTestProxy()}>
             测代理
           </button>
           <button type="button" className="btn" onClick={() => void onRevealOutput()}>
             打开输出 / 下载
           </button>
         </div>
+        {testing ? <p className="engine-hint">正在测试代理连通性…</p> : testResult ? <p className={`engine-hint ${testResult.includes('成功') ? 'engine-success' : 'engine-error'}`}>{testResult}</p> : null}
       </section>
 
       <KeywordLibraryModal

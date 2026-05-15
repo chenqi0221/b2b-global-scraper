@@ -9,6 +9,14 @@
   margin-bottom: 0.75rem;
 }
 
+.engine-success {
+  color: #16a34a;
+}
+
+.engine-error {
+  color: #b91c1c;
+}
+
 .engine-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -184,7 +192,22 @@
 }
 
 .engine-inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   margin-bottom: 0.75rem;
+}
+
+.engine-ai-gen {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.engine-ai-gen input[type="text"] {
+  flex: 1;
+  min-width: 0;
 }
 
 @media (max-width: 560px) {

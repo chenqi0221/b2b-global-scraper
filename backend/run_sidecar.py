@@ -18,9 +18,28 @@ import os
 import sys
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parent.parent
+# 支持 PyInstaller 冻结环境
+if getattr(sys, "frozen", False):
+    # 在 PyInstaller 中，exe 被解压到临时目录
+    _ROOT = Path(sys.executable).resolve().parent
+else:
+    _ROOT = Path(__file__).resolve().parent.parent
+
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
+
+# 调试：打印 sys.path 和 backend 模块路径
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("run_sidecar")
+logger.info(f"sys.path={sys.path}")
+logger.info(f"_ROOT={_ROOT}")
+try:
+    import backend
+    logger.info(f"backend module file={backend.__file__}")
+    logger.info(f"backend module path={backend.__path__}")
+except Exception as e:
+    logger.error(f"Failed to import backend: {e}")
 
 
 def main() -> None:
@@ -30,13 +49,24 @@ def main() -> None:
 
     import uvicorn
 
-    uvicorn.run(
-        "backend.main:app",
-        host="127.0.0.1",
-        port=port,
-        log_level="info",
-        access_log=False,
-    )
+    # 在 PyInstaller 冻结环境中，直接导入 app 对象而非通过模块路径字符串
+    if getattr(sys, "frozen", False):
+        from backend.main import app
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=port,
+            log_level="info",
+            access_log=False,
+        )
+    else:
+        uvicorn.run(
+            "backend.main:app",
+            host="127.0.0.1",
+            port=port,
+            log_level="info",
+            access_log=False,
+        )
 
 
 if __name__ == "__main__":

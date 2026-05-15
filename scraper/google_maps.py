@@ -4,11 +4,10 @@ import random
 from datetime import datetime
 
 from playwright.async_api import Page
-from playwright_stealth import Stealth
 from urllib.parse import quote
 
-from email_extractor import find_emails_on_website
-from file_export import export_results_csv_xlsx
+from scraper.email_extractor import find_emails_on_website
+from scraper.file_export import export_results_csv_xlsx
 
 logger = logging.getLogger(__name__)
 
@@ -156,9 +155,18 @@ async def scrape_google_maps(
     context = await browser.new_context(
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         viewport={"width": 1280, "height": 800},
+        locale="en-US",
+        timezone_id="America/New_York",
+        permissions=["geolocation"],
+        java_script_enabled=True,
     )
     page = await context.new_page()
-    await Stealth().apply_stealth_async(page)
+    # 基础反检测脚本（替代 playwright_stealth）
+    await page.add_init_script("""
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+        window.chrome = { runtime: {} };
+    """)
 
     results = []
     try:

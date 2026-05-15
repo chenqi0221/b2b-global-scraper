@@ -53,4 +53,4 @@ class KeywordDeleteBody(BaseModel):
 
 class AiGenBody(BaseModel):
     seed: str
-    num: int = Field(default=7, ge=1, le=30)
+    num: int = Field(default=7, ge=1)

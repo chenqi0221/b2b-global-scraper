@@ -144,8 +144,15 @@ fn kill_port_8756() {
 }
 
 fn spawn_bundled_backend() -> Option<Child> {
-    let exe = bundled_backend_exe()?;
+    let exe = match bundled_backend_exe() {
+        Some(p) => p,
+        None => {
+            log::warn!("bundled backend exe not found in app dir");
+            return None;
+        }
+    };
     let dir = exe.parent();
+    log::info!("bundled backend exe path: {}", exe.display());
 
     for attempt in 0..2 {
         if attempt > 0 {

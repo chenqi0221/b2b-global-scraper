@@ -26,11 +26,12 @@ async def find_emails_on_website(url: str, update_gui_callback) -> str:
     try:
         update_gui_callback(f"正在尝试从官网获取邮箱: {url}")
 
+        proxies = {"http://": HTTP_PROXY, "https://": HTTP_PROXY} if HTTP_PROXY else None
         async with httpx.AsyncClient(
             timeout=10.0,
             follow_redirects=True,
             verify=False,
-            proxy=HTTP_PROXY,
+            proxy=proxies,
         ) as client:
             headers = {
                 "User-Agent": (

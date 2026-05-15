@@ -22,7 +22,15 @@ router = APIRouter()
 @router.get("/library")
 def get_library():
     rows = keyword_manager.load_keywords()
-    return [{"en": e, "zh": c} for e, c in rows]
+    result = []
+    for r in rows:
+        if isinstance(r, dict):
+            result.append({"en": r.get("en", ""), "zh": r.get("zh", "")})
+        elif isinstance(r, (list, tuple)) and len(r) >= 2:
+            result.append({"en": r[0], "zh": r[1]})
+        else:
+            result.append({"en": str(r), "zh": ""})
+    return result
 
 
 @router.post("/library/append")
