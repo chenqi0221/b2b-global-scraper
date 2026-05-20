@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$RebuildSidecar
 )
 
@@ -116,6 +116,25 @@ else {
     Write-Error "未找到 PyInstaller 输出: $backendBin"
     Write-Error "请先运行: .\build_portable.ps1 -RebuildSidecar"
     exit 1
+}
+
+# 复制 Playwright 浏览器到便携版目录
+Write-Output "  正在复制 Playwright 浏览器..."
+$pwBrowsersDir = "$env:USERPROFILE\AppData\Local\ms-playwright"
+if (Test-Path $pwBrowsersDir) {
+    $targetBrowsersDir = "$portableDir\playwright\chromium-1208\chrome-win64"
+    $sourceChromium = "$pwBrowsersDir\chromium-1208\chrome-win64"
+    if (Test-Path $sourceChromium) {
+        New-Item -ItemType Directory -Force -Path $targetBrowsersDir | Out-Null
+        Copy-Item -Path "$sourceChromium\*" -Destination $targetBrowsersDir -Recurse -Force
+        Write-Output "  Playwright Chromium 浏览器已复制"
+    } else {
+        Write-Warning "  未找到 Playwright Chromium 浏览器: $sourceChromium"
+        Write-Warning "  请先运行: playwright install chromium"
+    }
+} else {
+    Write-Warning "  未找到 Playwright 浏览器缓存: $pwBrowsersDir"
+    Write-Warning "  请先运行: playwright install chromium"
 }
 
 Write-Output ""

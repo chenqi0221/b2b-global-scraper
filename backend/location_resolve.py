@@ -26,6 +26,10 @@ class ResolvedLocation(BaseModel):
 
 
 def resolve_location(body: ResolveLocationRequest) -> Optional[ResolvedLocation]:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[resolve_location] received: continent={body.continent!r} country={body.country!r} city={body.city!r} district={body.district!r}")
+
     if body.mode == "manual":
         addr = body.manual_address.strip()
         if not addr:
@@ -34,13 +38,30 @@ def resolve_location(body: ResolveLocationRequest) -> Optional[ResolvedLocation]
         return ResolvedLocation(country="", city=addr, district="")
 
     if not body.continent or not body.country or not body.city:
+        logger.info("[resolve_location] missing required field")
         return None
 
     try:
         node = GEOGRAPHICAL_DATA[body.continent][body.country]
         country_en = node["en"]
-    except Exception:
-        return None
+        logger.info(f"[resolve_location] direct lookup OK: country_en={country_en!r}")
+    except Exception as e:
+        logger.info(f"[resolve_location] direct lookup failed: {e}")
+        # 如果 continent/country 已经是英文，尝试反向查找
+        country_en = body.country
+        node = None
+        for cont_data in GEOGRAPHICAL_DATA.values():
+            for cn_name, cn_data in cont_data.items():
+                if cn_name == body.country or cn_data.get("en") == body.country:
+                    country_en = cn_data["en"]
+                    node = cn_data
+                    break
+            if node is not None:
+                break
+        if node is None:
+            logger.info("[resolve_location] reverse lookup also failed")
+            return None
+        logger.info(f"[resolve_location] reverse lookup OK: country_en={country_en!r}")
 
     city_en_match = re.search(r"\((.*?)\)", body.city)
     city_en = city_en_match.group(1) if city_en_match else body.city
@@ -52,4 +73,5 @@ def resolve_location(body: ResolveLocationRequest) -> Optional[ResolvedLocation]
     else:
         district = city_en
 
+    logger.info(f"[resolve_location] returning: country={country_en!r} city={city_en!r} district={district!r}")
     return ResolvedLocation(country=country_en, city=city_en, district=district)

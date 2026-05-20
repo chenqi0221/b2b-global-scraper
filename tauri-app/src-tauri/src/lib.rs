@@ -303,6 +303,48 @@ fn whatsapp_service_stop(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn check_backend_health() -> String {
+    if TcpStream::connect("127.0.0.1:8756").is_ok() {
+        "alive".into()
+    } else {
+        "dead".into()
+    }
+}
+
+#[tauri::command]
+fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
+    let st = app.state::<BackendChild>();
+    let mut slot = st.0.lock().map_err(|e| e.to_string())?;
+
+    if let Some(mut c) = slot.take() {
+        let _ = c.kill();
+        log::info!("python backend killed for restart");
+    }
+
+    #[cfg(windows)]
+    kill_port_8756();
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    let new_child = spawn_bundled_backend().or_else(|| {
+        let root = repo_root();
+        spawn_python_backend(&root)
+    });
+
+    match new_child {
+        Some(ch) => {
+            log::info!("python backend restarted successfully");
+            *slot = Some(ch);
+            Ok("后端已重启".into())
+        }
+        None => {
+            log::error!("python backend restart failed");
+            Err("后端重启失败".into())
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -317,7 +359,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             reveal_path,
             whatsapp_service_start,
-            whatsapp_service_stop
+            whatsapp_service_stop,
+            check_backend_health,
+            restart_backend
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

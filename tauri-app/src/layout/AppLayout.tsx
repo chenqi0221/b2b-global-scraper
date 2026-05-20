@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { Sun, Moon, RefreshCw, Palette } from 'lucide-react'
 
 import { useTheme } from '../hooks/useTheme'
+import { checkBackendHealth, restartBackend } from '../lib/tauriBridge'
 
 import './AppLayout.css'
 
@@ -16,14 +18,44 @@ const nav = [
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
-  const { theme, toggle } = useTheme()
+  const { accent, setAccent, mode, toggleMode, accents } = useTheme()
+
+  const [accentOpen, setAccentOpen] = useState(false)
+  const [backendAlive, setBackendAlive] = useState(true)
+  const [restarting, setRestarting] = useState(false)
+  const healthTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const pollHealth = useCallback(async () => {
+    const result = await checkBackendHealth()
+    setBackendAlive(result === 'alive')
+  }, [])
+
+  useEffect(() => {
+    pollHealth()
+    healthTimerRef.current = setInterval(pollHealth, 5000)
+    return () => {
+      if (healthTimerRef.current) clearInterval(healthTimerRef.current)
+    }
+  }, [pollHealth])
+
+  const handleRestart = async () => {
+    setRestarting(true)
+    setBackendAlive(false)
+    try {
+      await restartBackend()
+      setTimeout(async () => {
+        await pollHealth()
+        setRestarting(false)
+      }, 3000)
+    } catch {
+      setRestarting(false)
+    }
+  }
 
   return (
     <div className={`app-layout ${collapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* 移动端遮罩 */}
       {drawerOpen ? <div className="sidebar-overlay" onClick={() => setDrawerOpen(false)} /> : null}
 
-      {/* 侧边栏 */}
       <aside className={`sidebar ${drawerOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-brand">
@@ -64,16 +96,15 @@ export default function AppLayout() {
           <button
             type="button"
             className="theme-toggle"
-            onClick={toggle}
-            title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+            onClick={toggleMode}
+            title={mode === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
           >
-            <span className="theme-toggle-icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
-            {!collapsed && <span className="theme-toggle-text">{theme === 'dark' ? '浅色模式' : '深色模式'}</span>}
+            <span className="theme-toggle-icon">{mode === 'dark' ? '☀️' : '🌙'}</span>
+            {!collapsed && <span className="theme-toggle-text">{mode === 'dark' ? '浅色模式' : '深色模式'}</span>}
           </button>
         </div>
       </aside>
 
-      {/* 主内容区 */}
       <main className="main">
         <header className="topbar">
           <button
@@ -84,6 +115,75 @@ export default function AppLayout() {
           >
             ☰
           </button>
+
+          <div className="topbar-right">
+            {/* 主题颜色选择器 */}
+            <div className="accent-selector">
+              <button
+                type="button"
+                className="topbar-icon-btn"
+                onClick={() => setAccentOpen((o) => !o)}
+                title="切换主题颜色"
+              >
+                <Palette size={17} />
+              </button>
+              {accentOpen && (
+                <>
+                  <div className="accent-dropdown-backdrop" onClick={() => setAccentOpen(false)} />
+                  <div className="accent-dropdown">
+                    {accents.map((a) => (
+                      <button
+                        key={a.key}
+                        type="button"
+                        className={`accent-option ${accent === a.key ? 'active' : ''}`}
+                        onClick={() => { setAccent(a.key); setAccentOpen(false) }}
+                      >
+                        <span className="accent-dot" style={{ background: a.color }} />
+                        <span className="accent-label">{a.label}</span>
+                        {accent === a.key && <span className="accent-check">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <span className="topbar-divider" />
+
+            {/* 暗/亮模式切换 */}
+            <button
+              type="button"
+              className="topbar-icon-btn"
+              onClick={toggleMode}
+              title={mode === 'dark' ? '浅色模式' : '深色模式'}
+            >
+              {mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+
+            <span className="topbar-divider" />
+
+            {/* 后端状态指示器 */}
+            <div
+              className={`backend-status ${backendAlive ? 'alive' : 'dead'} ${restarting ? 'restarting' : ''}`}
+              onClick={() => !backendAlive && !restarting && handleRestart()}
+              title={backendAlive ? '后端服务运行正常' : restarting ? '正在重启...' : '点击重启后端服务'}
+            >
+              <span className="status-dot" />
+              <span className="status-text">
+                {restarting ? '重启中...' : backendAlive ? '后端正常' : '后端已停止'}
+              </span>
+              {!backendAlive && !restarting && (
+                <button
+                  type="button"
+                  className="restart-btn"
+                  onClick={(e) => { e.stopPropagation(); handleRestart() }}
+                >
+                  <RefreshCw size={13} />
+                  重启
+                </button>
+              )}
+            </div>
+          </div>
         </header>
         <div className="content">
           <Outlet />

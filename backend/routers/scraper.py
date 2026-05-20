@@ -14,7 +14,7 @@ def start_scrape(
     ctrl: ScraperController = Depends(get_scraper_controller),
 ):
     loc = body.location.model_dump()
-    ctrl.start_scraping(body.keywords, loc, body.concurrency)
+    ctrl.start_scraping(body.keywords, loc, body.concurrency, body.headless)
     log_bus.publish(
         f"抓取任务已启动：关键词 {len(body.keywords)} 个，并发 {body.concurrency}",
         "info",
@@ -38,4 +38,7 @@ def scrape_status(ctrl: ScraperController = Depends(get_scraper_controller)):
         synced_count=ctrl.synced_count,
         current_keyword=None,
         output_dir=ctrl.output_dir,
+        keywords=list(getattr(ctrl, "keyword_progress", {}).values()),
+        total_keywords=getattr(ctrl, "total_keywords", 0),
+        completed_keywords=getattr(ctrl, "completed_keywords", 0),
     )

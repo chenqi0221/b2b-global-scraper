@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { KeywordLibraryModal } from '../components/KeywordLibraryModal'
+import { ProgressPanel } from '../components/ProgressPanel'
 import { API_BASE } from '../config/api'
 import { isTauri, pickCsvFile, pickDirectory, pickDirectoryBrowser, revealPath } from '../lib/tauriBridge'
 import { useEngineStore } from '../stores/engineStore'
@@ -37,6 +38,7 @@ export default function EnginePage() {
   const category = useEngineStore((s) => s.category)
   const kwText = useEngineStore((s) => s.kwText)
   const concurrency = useEngineStore((s) => s.concurrency)
+  const headless = useEngineStore((s) => s.headless)
   const aiSeed = useEngineStore((s) => s.aiSeed)
   const aiNum = useEngineStore((s) => s.aiNum)
 
@@ -49,6 +51,7 @@ export default function EnginePage() {
   const setCategory = useEngineStore((s) => s.setCategory)
   const setKwText = useEngineStore((s) => s.setKwText)
   const setConcurrency = useEngineStore((s) => s.setConcurrency)
+  const setHeadless = useEngineStore((s) => s.setHeadless)
   const setAiSeed = useEngineStore((s) => s.setAiSeed)
   const setAiNum = useEngineStore((s) => s.setAiNum)
 
@@ -151,9 +154,11 @@ export default function EnginePage() {
 
   /** 获取城市的英文名称（城市名本身就是中文，需要映射） */
   const getCityEn = (cityZh: string): string => {
-    // 后端 location_resolve.py 会从 body.city 中提取括号内的英文
-    // 但我们的数据格式是 { "上海": [...] }，没有英文
-    // 所以需要手动映射常见城市
+    // 后端 location_resolve.py 期望 city 是纯英文或带括号格式
+    // 数据格式是 "广州 (Guangzhou)", 先尝试提取括号内的英文
+    const match = cityZh.match(/\(([^)]+)\)/)
+    if (match) return match[1]
+    // 兜底：手动映射表
     const cityMap: Record<string, string> = {
       '上海': 'Shanghai', '北京': 'Beijing', '深圳': 'Shenzhen', '广州': 'Guangzhou',
       '杭州': 'Hangzhou', '成都': 'Chengdu', '重庆': 'Chongqing', '武汉': 'Wuhan',
@@ -224,7 +229,7 @@ export default function EnginePage() {
       '圣多明各': 'Santo Domingo',
       '哈瓦那': 'Havana',
       '圣胡安': 'San Juan',
-      '圣乔治': 'St. George\'s',
+      '圣乔治': "St. George's",
       '布里奇敦': 'Bridgetown',
       '太子港': 'Port-au-Prince',
       '金斯敦': 'Kingston',
@@ -261,8 +266,163 @@ export default function EnginePage() {
   /** 获取区域的英文名称 */
   const getDistrictEn = (districtZh: string): string => {
     if (districtZh === '所有') return getCityEn(city)
-    // 区域目前都是中文，直接返回中文（Google Maps 支持中文搜索区域）
-    return districtZh
+    // 常见区域中文→英文映射（Google Maps 搜索需要英文）
+    // 注意：不同城市可能有同名区域，这里统一用拼音，Google Maps 会结合城市名自动定位
+    const districtMap: Record<string, string> = {
+      '海淀区': 'Haidian', '朝阳区': 'Chaoyang', '东城区': 'Dongcheng', '西城区': 'Xicheng',
+      '丰台区': 'Fengtai', '石景山区': 'Shijingshan', '门头沟区': 'Mentougou', '房山区': 'Fangshan',
+      '通州区': 'Tongzhou', '顺义区': 'Shunyi', '昌平区': 'Changping', '大兴区': 'Daxing',
+      '怀柔区': 'Huairou', '平谷区': 'Pinggu', '密云区': 'Miyun', '延庆区': 'Yanqing',
+      '黄浦区': 'Huangpu', '徐汇区': 'Xuhui', '长宁区': 'Changning', '静安区': "Jing'an",
+      '普陀区': 'Putuo', '虹口区': 'Hongkou', '杨浦区': 'Yangpu', '闵行区': 'Minhang',
+      '宝山区': 'Baoshan', '嘉定区': 'Jiading', '浦东新区': 'Pudong', '金山区': 'Jinshan',
+      '松江区': 'Songjiang', '青浦区': 'Qingpu', '奉贤区': 'Fengxian', '崇明区': 'Chongming',
+      '天河区': 'Tianhe', '越秀区': 'Yuexiu', '海珠区': 'Haizhu', '荔湾区': 'Liwan',
+      '白云区': 'Baiyun', '黄埔区': 'Huangpu', '番禺区': 'Panyu', '花都区': 'Huadu',
+      '南沙区': 'Nansha', '从化区': 'Conghua', '增城区': 'Zengcheng',
+      '福田区': 'Futian', '罗湖区': 'Luohu', '南山区': 'Nanshan', '盐田区': 'Yantian',
+      '宝安区': "Bao'an", '龙岗区': 'Longgang', '龙华区': 'Longhua', '坪山区': 'Pingshan', '光明区': 'Guangming',
+      '上城区': 'Shangcheng', '拱墅区': 'Gongshu', '西湖区': 'Xihu', '滨江区': 'Binjiang',
+      '萧山区': 'Xiaoshan', '余杭区': 'Yuhang', '富阳区': 'Fuyang', '临安区': 'Linan',
+      '临平区': 'Linping', '钱塘区': 'Qiantang',
+      '锦江区': 'Jinjiang', '青羊区': 'Qingyang', '金牛区': 'Jinniu', '武侯区': 'Wuhou',
+      '成华区': 'Chenghua', '龙泉驿区': 'Longquanyi', '青白江区': 'Qingbaijiang', '新都区': 'Xindu',
+      '温江区': 'Wenjiang', '双流区': 'Shuangliu', '郫都区': 'Pidu', '新津区': 'Xinjin',
+      '江岸区': "Jiang'an", '江汉区': 'Jianghan', '硚口区': 'Qiaokou', '汉阳区': 'Hanyang',
+      '武昌区': 'Wuchang', '青山区': 'Qingshan', '洪山区': 'Hongshan', '东西湖区': 'Dongxihu',
+      '汉南区': 'Hannan', '蔡甸区': 'Caidian', '江夏区': 'Jiangxia', '黄陂区': 'Huangpi', '新洲区': 'Xinzhou',
+      '玄武区': 'Xuanwu', '秦淮区': 'Qinhuai', '建邺区': 'Jianye', '鼓楼区': 'Gulou',
+      '浦口区': 'Pukou', '栖霞区': 'Qixia', '雨花台区': 'Yuhuatai', '江宁区': 'Jiangning',
+      '六合区': 'Luhe', '溧水区': 'Lishui', '高淳区': 'Gaochun',
+      '和平区': 'Heping', '河东区': 'Hedong', '河西区': 'Hexi', '南开区': 'Nankai',
+      '河北区': 'Hebei', '红桥区': 'Hongqiao', '东丽区': 'Dongli', '西青区': 'Xiqing',
+      '津南区': 'Jinnan', '北辰区': 'Beichen', '武清区': 'Wuqing', '宝坻区': 'Baodi',
+      '滨海新区': 'Binhai', '宁河区': 'Ninghe', '静海区': 'Jinghai', '蓟州区': 'Jizhou',
+      '渝中区': 'Yuzhong', '大渡口区': 'Dadukou', '江北区': 'Jiangbei', '沙坪坝区': 'Shapingba',
+      '九龙坡区': 'Jiulongpo', '南岸区': "Nan'an", '北碚区': 'Beibei', '渝北区': 'Yubei',
+      '巴南区': 'Banan', '涪陵区': 'Fuling', '万州区': 'Wanzhou', '黔江区': 'Qianjiang',
+      '长寿区': 'Changshou', '江津区': 'Jiangjin', '合川区': 'Hechuan', '永川区': 'Yongchuan',
+      '南川区': 'Nanchuan', '綦江区': 'Qijiang', '大足区': 'Dazu', '璧山区': 'Bishan',
+      '铜梁区': 'Tongliang', '潼南区': 'Tongnan', '荣昌区': 'Rongchang', '开州区': 'Kaizhou',
+      '梁平区': 'Liangping', '武隆区': 'Wulong',
+      '姑苏区': 'Gusu', '虎丘区': 'Huqiu', '吴中区': 'Wuzhong', '相城区': 'Xiangcheng',
+      '吴江区': 'Wujiang', '工业园区': 'Suzhou Industrial Park',
+      '莞城街道': 'Guancheng', '南城街道': 'Nancheng', '东城街道': 'Dongcheng', '万江街道': 'Wanjiang',
+      '新城区': 'Xincheng', '碑林区': 'Beilin', '莲湖区': 'Lianhu', '雁塔区': 'Yanta',
+      '灞桥区': 'Baqiao', '未央区': 'Weiyang', '阎良区': 'Yanliang', '临潼区': 'Lintong',
+      '长安区': "Chang'an", '高陵区': 'Gaoling', '鄠邑区': 'Huyi',
+      '沈河区': 'Shenhe', '大东区': 'Dadong', '皇姑区': 'Huanggu',
+      '铁西区': 'Tiexi', '苏家屯区': 'Sujiatun', '浑南区': 'Hunnan', '沈北新区': 'Shenbei',
+      '于洪区': 'Yuhong', '辽中区': 'Liaozhong',
+      '中山区': 'Zhongshan', '西岗区': 'Xigang', '沙河口区': 'Shahekou', '甘井子区': 'Ganjingzi',
+      '旅顺口区': 'Lvshunkou', '金州区': 'Jinzhou', '普兰店区': 'Pulandian',
+      '市南区': 'Shinan', '市北区': 'Shibei', '黄岛区': 'Huangdao', '崂山区': 'Laoshan',
+      '李沧区': 'Licang', '城阳区': 'Chengyang', '即墨区': 'Jimo',
+      '思明区': 'Siming', '海沧区': 'Haicang', '湖里区': 'Huli', '集美区': 'Jimei',
+      '同安区': "Tong'an", '翔安区': "Xiang'an",
+      '海曙区': 'Haishu', '北仑区': 'Beilun', '镇海区': 'Zhenhai',
+      '鄞州区': 'Yinzhou', '奉化区': 'Fenghua',
+      '芙蓉区': 'Furong', '天心区': 'Tianxin', '岳麓区': 'Yuelu', '开福区': 'Kaifu',
+      '雨花区': 'Yuhua', '望城区': 'Wangcheng',
+      '中原区': 'Zhongyuan', '二七区': 'Erqi', '管城回族区': 'Guancheng', '金水区': 'Jinshui',
+      '上街区': 'Shangjie', '惠济区': 'Huiji',
+      '台江区': 'Taijiang', '仓山区': 'Cangshan', '马尾区': 'Mawei',
+      '晋安区': "Jin'an", '长乐区': 'Changle',
+      '五华区': 'Wuhua', '盘龙区': 'Panlong', '官渡区': 'Guandu', '西山区': 'Xishan',
+      '东川区': 'Dongchuan', '呈贡区': 'Chenggong', '晋宁区': 'Jinning',
+      '桥西区': 'Qiaoxi', '新华区': 'Xinhua', '井陉矿区': 'Jingxing',
+      '裕华区': 'Yuhua', '藁城区': 'Gaocheng', '鹿泉区': 'Luquan', '栾城区': 'Luancheng',
+      '历下区': 'Lixia', '市中区': 'Shizhong', '槐荫区': 'Huaiyin', '天桥区': 'Tianqiao',
+      '历城区': 'Licheng', '长清区': 'Changqing', '章丘区': 'Zhangqiu', '济阳区': 'Jiyang',
+      '莱芜区': 'Laiwu', '钢城区': 'Gangcheng',
+      '道里区': 'Daoli', '南岗区': 'Nangang', '道外区': 'Daowai', '平房区': 'Pingfang',
+      '松北区': 'Songbei', '香坊区': 'Xiangfang', '呼兰区': 'Hulan', '阿城区': 'Acheng',
+      '双城区': 'Shuangcheng',
+      '南关区': 'Nanguan', '宽城区': 'Kuancheng', '二道区': 'Erdao',
+      '绿园区': 'Lvyuan', '双阳区': 'Shuangyang', '九台区': 'Jiutai',
+      '小店区': 'Xiaodian', '迎泽区': 'Yingze', '杏花岭区': 'Xinghualing', '尖草坪区': 'Jiancaoping',
+      '万柏林区': 'Wanbailin', '晋源区': 'Jinyuan',
+      '瑶海区': 'Yaohai', '庐阳区': 'Luyang', '蜀山区': 'Shushan', '包河区': 'Baohe',
+      '长丰县': 'Changfeng', '肥东县': 'Feidong', '肥西县': 'Feixi', '庐江县': 'Lujiang',
+      '巢湖市': 'Chaohu',
+      '青云谱区': 'Qingyunpu', '湾里区': 'Wanli',
+      '青山湖区': 'Qingshanhu', '新建区': 'Xinjian',
+      '兴宁区': 'Xingning', '青秀区': 'Qingxiu', '江南区': 'Jiangnan', '西乡塘区': 'Xixiangtang',
+      '良庆区': 'Liangqing', '邕宁区': 'Yongning', '武鸣区': 'Wuming',
+      '南明区': 'Nanming', '云岩区': 'Yunyan', '花溪区': 'Huaxi', '乌当区': 'Wudang',
+      '观山湖区': 'Guanshanhu',
+      '城关区': 'Chengguan', '七里河区': 'Qilihe', '西固区': 'Xigu', '安宁区': 'Anning',
+      '红古区': 'Honggu',
+      '秀英区': 'Xiuying', '琼山区': 'Qiongshan', '美兰区': 'Meilan',
+      '天山区': 'Tianshan', '沙依巴克区': 'Shayibake', '新市区': 'Xinshi', '水磨沟区': 'Shuimogou',
+      '头屯河区': 'Toutunhe', '达坂城区': 'Dabancheng', '米东区': 'Midong',
+      '堆龙德庆区': 'Duilongdeqing', '达孜区': 'Dazi',
+      '兴庆区': 'Xingqing', '西夏区': 'Xixia', '金凤区': 'Jinfeng',
+      '城东区': 'Chengdong', '城中区': 'Chengzhong', '城西区': 'Chengxi', '城北区': 'Chengbei',
+      '回民区': 'Huimin', '玉泉区': 'Yuquan', '赛罕区': 'Saihan',
+      '中西区': 'Central and Western', '湾仔区': 'Wan Chai', '东区': 'Eastern', '南区': 'Southern',
+      '油尖旺区': 'Yau Tsim Mong', '深水埗区': 'Sham Shui Po', '九龙城区': 'Kowloon City',
+      '黄大仙区': 'Wong Tai Sin', '观塘区': 'Kwun Tong', '荃湾区': 'Tsuen Wan',
+      '屯门区': 'Tuen Mun', '元朗区': 'Yuen Long', '北区': 'North', '大埔区': 'Tai Po',
+      '西贡区': 'Sai Kung', '沙田区': 'Sha Tin', '葵青区': 'Kwai Tsing', '离岛区': 'Islands',
+      '花地玛堂区': 'Nossa Senhora de Fatima', '圣安多尼堂区': 'Santo Antonio',
+      '大堂区': 'Sé', '望德堂区': 'Sao Lazaro', '风顺堂区': 'Sao Lourenco',
+      '嘉模堂区': 'Our Lady of Carmel', '圣方济各堂区': 'St. Francis Xavier',
+      '松山区': 'Songshan', '信义区': 'Xinyi',
+      '中正区': 'Zhongzheng', '大同区': 'Datong', '万华区': 'Wanhua', '文山区': 'Wenshan',
+      '南港区': 'Nangang', '内湖区': 'Neihu', '士林区': 'Shilin', '北投区': 'Beitou',
+      '千代田区': 'Chiyoda', '中央区': 'Chuo', '港区': 'Minato', '新宿区': 'Shinjuku',
+      '文京区': 'Bunkyo', '台东区': 'Taito', '墨田区': 'Sumida', '江东区': 'Koto',
+      '品川区': 'Shinagawa', '目黑区': 'Meguro', '大田区': 'Ota', '世田谷区': 'Setagaya',
+      '涩谷区': 'Shibuya', '中野区': 'Nakano', '杉并区': 'Suginami', '丰岛区': 'Toshima',
+      '荒川区': 'Arakawa', '板桥区': 'Itabashi', '练马区': 'Nerima',
+      '足立区': 'Adachi', '葛饰区': 'Katsushika', '江户川区': 'Edogawa',
+      '大阪市': 'Osaka City', '堺市': 'Sakai', '丰中市': 'Toyonaka', '池田市': 'Ikeda',
+      '吹田市': 'Suita', '泉大津市': 'Izumiotsu', '高槻市': 'Takatsuki', '守口市': 'Moriguchi',
+      '枚方市': 'Hirakata', '茨木市': 'Ibaraki', '八尾市': 'Yao', '泉佐野市': 'Izumisano',
+      '富田林市': 'Tondabayashi', '寝屋川市': 'Neyagawa', '河内长野市': 'Kawachinagano',
+      '松原市': 'Matsubara', '大东市': 'Daito', '和泉市': 'Izumi', '箕面市': 'Minoh',
+      '柏原市': 'Kashiwara', '羽曳野市': 'Habikino', '门真市': 'Kadoma', '摄津市': 'Settsu',
+      '东大阪市': 'Higashiosaka', '藤井寺市': 'Fujiidera', '交野市': 'Katano',
+      '岛本町': 'Shimamoto', '太子町': 'Taishi', '河南町': 'Kanan', '千早赤阪村': 'Chihayaakasaka',
+      '拍那空区': 'Phra Nakhon', '律实区': 'Dusit', '娜那区': 'Nong Chok', '挽卿区': 'Bang Khen',
+      '邦纳区': 'Bang Na', '挽甲必区': 'Bang Kapi', '巴威区': 'Prawet', '沙吞区': 'Sathon',
+      '宛他那县': 'Watthana', '叻差贴威县': 'Ratchathewi', '邻铃县': 'Din Daeng',
+      '汇权县': 'Huai Khwang', '乍都节区': 'Chatuchak', '廊曼区': 'Don Mueang',
+      '挽拍区': 'Bang Phlat', '拍昆仑区': 'Phra Khanong', '然那哇县': 'Yan Nawa',
+      '挽叻区': 'Bang Rak', '拍耶泰区': 'Phaya Thai',
+      '空堤区': 'Khlong Toei', '吞武里区': 'Thon Buri', '曼谷莲区': 'Bangkok Noi',
+      '曼谷艾区': 'Bangkok Yai', '邦巴沙都拍区': 'Pom Prap Sattru Phai',
+      '冠岳区': 'Gwanak', '广津区': 'Gwangjin', '九老区': 'Guro', '衿川区': 'Geumcheon',
+      '芦原区': 'Nowon', '道峰区': 'Dobong', '东大门区': 'Dongdaemun', '铜雀区': 'Dongjak',
+      '恩平区': 'Eunpyeong', '龙山区': 'Yongsan', '麻浦区': 'Mapo', '西大门区': 'Seodaemun', '瑞草区': 'Seocho',
+      '松坡区': 'Songpa', '阳川区': 'Yangcheon', '永登浦区': 'Yeongdeungpo',
+      '钟路区': 'Jongno', '中区': 'Jung', '中浪区': 'Jungnang',
+      '东北区': 'North East', '西北区': 'North West', '东南区': 'South East', '西南区': 'South West',
+      '武吉免登': 'Bukit Bintang', '蒂蒂旺沙': 'Titiwangsa', '斯迪亚旺沙': 'Setiawangsa',
+      '旺沙玛珠': 'Wangsa Maju', '峇都': 'Batu', '甲洞': 'Kepong', '泗岩沫': 'Segambut',
+      '班底谷': 'Lembah Pantai', '士布爹': 'Seputeh', '武吉加里尔': 'Bukit Jalil',
+      '敦拉萨镇': 'Bandar Tun Razak', '蕉赖': 'Cheras', '新街场': 'Sungai Besi',
+      '大使路': 'Jalan Duta', '孟沙': 'Bangsar', '班底': 'Pantai',
+      'A区': 'Zone A', 'B区': 'Zone B', 'C区': 'Zone C', 'D区': 'Zone D',
+      'E区': 'Zone E', 'F区': 'Zone F', 'G区': 'Zone G',
+      '新德里区': 'New Delhi District', '北德里': 'North Delhi', '南德里': 'South Delhi',
+      '东德里': 'East Delhi', '东北德里': 'North East Delhi', '西北德里': 'North West Delhi',
+      '西南德里': 'South West Delhi', '西德里': 'West Delhi',
+      '班加罗尔市区': 'Bangalore Urban', '班加罗尔郊区': 'Bangalore Rural',
+      '德拉区': 'Deira', '布尔迪拜': 'Bur Dubai', '朱美拉': 'Jumeirah',
+      '阿尔巴沙': 'Al Barsha', '迪拜码头': 'Dubai Marina', '商业湾': 'Business Bay',
+      '迪拜市中心': 'Downtown Dubai', '国际城': 'International City',
+      '八王子市': 'Hachioji', '立川市': 'Tachikawa', '武藏野市': 'Musashino',
+      '三鹰市': 'Mitaka', '青梅市': 'Ome', '府中市': 'Fuchu', '昭岛市': 'Akishima',
+      '调布市': 'Chofu', '町田市': 'Machida', '小金井市': 'Koganei', '小平市': 'Kodaira',
+      '日野市': 'Hino', '东村山市': 'Higashimurayama', '国分寺市': 'Kokubunji',
+      '国立市': 'Kunitachi', '福生市': 'Fussa', '狛江市': 'Komaae', '东大和市': 'Higashiyamato',
+      '清濑市': 'Kiyose', '东久留米市': 'Higashikurume', '武藏村山市': 'Musashimurayama',
+      '西东京市': 'Nishitokyo', '瑞穗町': 'Mizuho', '日之出町': 'Hinode',
+      '桧原村': 'Hinohara', '奥多摩町': 'Okutama',
+    }
+    return districtMap[districtZh] ?? districtZh
   }
 
   async function resolveLocation(): Promise<LocationModel | null> {
@@ -279,6 +439,7 @@ export default function EnginePage() {
     const countryEn = getCountryEn(country)
     const cityEn = getCityEn(city)
     const districtEn = getDistrictEn(district)
+    console.log('[resolveLocation] sending:', { continent, country: countryEn, city: cityEn, district: districtEn })
     const r = await fetch(`${API_BASE}/api/meta/resolve-location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -290,8 +451,10 @@ export default function EnginePage() {
         district: districtEn,
       }),
     })
+    const respText = await r.text()
+    console.log('[resolveLocation] response status:', r.status, 'body:', respText)
     if (!r.ok) return null
-    return (await r.json()) as LocationModel
+    return JSON.parse(respText) as LocationModel
   }
 
   /** 从显示文本中提取英文关键词 */
@@ -321,7 +484,7 @@ export default function EnginePage() {
     const r = await fetch(`${API_BASE}/api/scraper/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keywords: kws, location: loc, concurrency }),
+      body: JSON.stringify({ keywords: kws, location: loc, concurrency, headless }),
     })
     if (!r.ok) {
       window.alert('启动失败')
@@ -773,6 +936,14 @@ export default function EnginePage() {
             <button type="button" className="btn danger" disabled={!running} onClick={() => void onStop()}>
               停止
             </button>
+            <label className="field inline checkbox-field">
+              <input
+                type="checkbox"
+                checked={!headless}
+                onChange={(e) => setHeadless(!e.target.checked)}
+              />
+              <span>显示浏览器</span>
+            </label>
             <label className="field inline concurrency-field">
               <span>并发数</span>
               <input
@@ -806,9 +977,11 @@ export default function EnginePage() {
         </section>
       </div>
 
+      <ProgressPanel status={status} />
+
       <section className="engine-log">
         <h2>运行日志</h2>
-        <pre ref={logRef} className="log-pre">
+        <pre ref={logRef} className="engine-logs">
           {logs.length ? logs.join('\n') : '（等待后端推送…）'}
         </pre>
       </section>

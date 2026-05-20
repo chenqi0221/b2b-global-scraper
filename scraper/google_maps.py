@@ -89,6 +89,54 @@ async def smart_scroll(page: Page, stop_event: asyncio.Event, update_gui_callbac
             update_gui_callback(f"滚动加载出现问题: {str(e)}")
 
 
+async def _dismiss_google_consent(page: Page) -> bool:
+    consent_selectors = [
+        'button[aria-label="Accept all"]',
+        'button:has-text("Accept all")',
+        'button:has-text("I agree")',
+        'button:has-text("OK")',
+        'button[aria-label="Reject all"]',
+        'button:has-text("Reject all")',
+        'form[action*="consent"] button',
+    ]
+    for selector in consent_selectors:
+        try:
+            btn = page.locator(selector).first
+            if await btn.count() > 0 and await btn.is_visible(timeout=2000):
+                await btn.click(timeout=3000)
+                await page.wait_for_timeout(2000)
+                logger.info(f"[Consent] dismissed via {selector}")
+                return True
+        except Exception:
+            continue
+    return False
+
+
+async def _capture_page_diagnostic(page: Page, keyword: str, output_dir: str) -> str:
+    import os as _os
+    diag_dir = _os.path.join(output_dir, "_diagnostic")
+    _os.makedirs(diag_dir, exist_ok=True)
+    ts = datetime.now().strftime("%H%M%S")
+    safe_kw = keyword.replace(" ", "_").replace("/", "_")[:30]
+    screenshot_path = _os.path.join(diag_dir, f"{safe_kw}_{ts}.png")
+    try:
+        await page.screenshot(path=screenshot_path, full_page=False)
+    except Exception:
+        screenshot_path = "(failed)"
+    try:
+        page_title = await page.title()
+        body_text = await page.evaluate("() => document.body.innerText.substring(0, 300)")
+    except Exception:
+        page_title = "(failed)"
+        body_text = "(failed)"
+    return (
+        f"[诊断] '{keyword}' 超时\n"
+        f"  标题: {page_title}\n"
+        f"  文本(300): {body_text}\n"
+        f"  截图: {screenshot_path}"
+    )
+
+
 async def extract_details(page: Page):
     """从详情面板提取商家详细信息"""
     data = {"Rating": "", "Reviews": "", "Address": "", "Website": "", "Phone": ""}
@@ -147,6 +195,7 @@ async def scrape_google_maps(
     output_dir,
     update_gui_callback,
     stop_event: asyncio.Event,
+    on_progress=None,
 ):
     keyword = task_info["keyword"]
     location = f"{task_info['district']}, {task_info['city']}, {task_info['country']}"
@@ -180,12 +229,17 @@ async def scrape_google_maps(
                 wait_until="domcontentloaded",
                 timeout=45000,
             )
-            # 等待第一个 article 或“无结果”提示
-            await page.wait_for_selector("div[role='article'], div.fontBodyMedium > span", timeout=15000)
+            await page.wait_for_timeout(2000)
+            dismissed = await _dismiss_google_consent(page)
+            if dismissed:
+                await page.wait_for_timeout(1000)
+            await page.wait_for_selector("div[role='article'], div.fontBodyMedium > span", timeout=25000)
         except Exception as e:
+            diag_msg = await _capture_page_diagnostic(page, keyword, output_dir)
             logger.warning(f"页面加载超时或无结果: {search_query} - {e}")
+            update_gui_callback(diag_msg)
             update_gui_callback(f"[{keyword}] 页面加载超时或无结果")
-            return 0, 0 # 直接返回，不继续执行
+            return 0, 0
 
         # 检查是否是“无结果”页面
         no_results_el = await page.query_selector("div.fontBodyMedium > span")
@@ -199,6 +253,8 @@ async def scrape_google_maps(
         listings_locator = page.locator("div[role='article']")
         listings_count = await listings_locator.count()
         update_gui_callback(f"共找到 {listings_count} 个潜在商家，准备抓取详情...")
+        if on_progress:
+            on_progress("found", count=listings_count)
 
         for i in range(listings_count):
             if stop_event.is_set():
@@ -272,6 +328,8 @@ async def scrape_google_maps(
                     update_gui_callback(
                         f"进度 ({i+1}/{listings_count}): {detail_data['Name']}"
                     )
+                    if on_progress:
+                        on_progress("business", index=i, success=True)
                     await asyncio.sleep(random.uniform(1.0, 2.0))
                     success = True
                 except Exception as e:
@@ -284,6 +342,8 @@ async def scrape_google_maps(
                     else:
                         update_gui_callback(f"跳过第 {i+1} 个商家: 多次尝试失败 ({str(e)})")
                         logger.error(f"跳过第 {i+1} 个商家: 多次尝试失败 ({str(e)})")
+                        if on_progress:
+                            on_progress("business", index=i, success=False)
 
         if results:
             base_filename = f"{keyword}_{task_info['city']}_{datetime.now().strftime('%H%M')}"
@@ -310,8 +370,15 @@ async def scrape_google_maps(
             update_gui_callback(f"关键词 '{keyword}' 未抓取到任何有效商家。")
 
     except Exception as e:
-        logger.error(f"抓取过程出错: {str(e)}")
-        update_gui_callback(f"错误: {keyword} 抓取异常中断")
+        error_msg = str(e)
+        logger.error(f"抓取过程出错: {error_msg}")
+        # 区分 Connection closed 错误和其他错误
+        if "Connection closed" in error_msg or "Target page, context or browser has been closed" in error_msg:
+            update_gui_callback(f"[错误] {keyword} 浏览器连接断开，可能是内存不足或浏览器崩溃")
+            # 重新抛出，让上层处理重试
+            raise
+        else:
+            update_gui_callback(f"[错误] {keyword} 抓取异常: {error_msg}")
     finally:
         try:
             await context.close()

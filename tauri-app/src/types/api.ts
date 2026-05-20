@@ -6,6 +6,15 @@ export type LocationModel = {
   district: string
 }
 
+export type KeywordProgress = {
+  keyword: string
+  status: 'queued' | 'running' | 'done' | 'failed'
+  found: number
+  processed: number
+  succeeded: number
+  skipped: number
+}
+
 export type ScrapeStatus = {
   is_running: boolean
   total_found: number
@@ -13,6 +22,9 @@ export type ScrapeStatus = {
   synced_count: number
   current_keyword: string | null
   output_dir: string | null
+  keywords: KeywordProgress[]
+  total_keywords: number
+  completed_keywords: number
 }
 
 export type LogEventPayload = {

@@ -359,6 +359,29 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+.checkbox-field {
+  margin-bottom: 0;
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.checkbox-field span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* 路径提示框 */
 .path-box {
   display: flex;
@@ -369,7 +392,9 @@
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   font-size: 0.82rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .path-label {
@@ -554,4 +579,148 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* 进度面板 */
+.progress-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.progress-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-h);
+  flex-wrap: wrap;
+}
+
+.summary-item { color: var(--text-h); }
+.summary-sep { color: var(--border); font-weight: 300; }
+.summary-item.muted { color: var(--text-muted); }
+
+.s-ok { color: var(--success); font-weight: 600; margin-right: 0.15rem; }
+.s-fail { color: var(--error); font-weight: 600; margin-left: 0.35rem; }
+
+.progress-section {
+  padding: 0.55rem 1.1rem 0.7rem;
+}
+
+.progress-section + .progress-section {
+  border-top: 1px solid var(--border);
+}
+
+.progress-section-title {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.progress-section-title.toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.progress-section-title.toggle:hover {
+  color: var(--accent);
+}
+
+.progress-section-title.error {
+  color: var(--error);
+}
+
+.toggle-arrow {
+  font-size: 0.7rem;
+  margin-left: 0.2rem;
+}
+
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+@media (max-width: 1000px) {
+  .progress-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .progress-grid { grid-template-columns: 1fr; }
+}
+
+.progress-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.progress-card-title {
+  font-size: 0.78rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress-bar-wrap {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.progress-card-stats {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.progress-card-stats.muted { color: var(--text-muted); }
+
+.progress-done-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.done-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.73rem;
+  color: var(--text-h);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.55rem;
+}
+
+.done-tag.fail {
+  color: var(--error);
+  border-color: var(--error);
 }

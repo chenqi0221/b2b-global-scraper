@@ -68,3 +68,29 @@ export async function whatsappServiceStop(): Promise<void> {
   if (!isTauri()) return
   await invoke('whatsapp_service_stop')
 }
+
+export async function checkBackendHealth(): Promise<'alive' | 'dead'> {
+  if (!isTauri()) {
+    try {
+      const res = await fetch('http://127.0.0.1:8756/api/system/health', {
+        signal: AbortSignal.timeout(2000),
+      })
+      return res.ok ? 'alive' : 'dead'
+    } catch {
+      return 'dead'
+    }
+  }
+  return invoke<'alive' | 'dead'>('check_backend_health')
+}
+
+export async function restartBackend(): Promise<string> {
+  if (!isTauri()) {
+    const res = await fetch('http://127.0.0.1:8756/api/system/restart', {
+      method: 'POST',
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return '后端正在重启...'
+  }
+  return invoke<string>('restart_backend')
+}

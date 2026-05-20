@@ -11,6 +11,7 @@ interface EngineState {
   category: string
   kwText: string
   concurrency: number
+  headless: boolean
   aiSeed: string
   aiNum: number
 
@@ -23,6 +24,7 @@ interface EngineState {
   setCategory: (v: string) => void
   setKwText: (v: string | ((prev: string) => string)) => void
   setConcurrency: (v: number) => void
+  setHeadless: (v: boolean) => void
   setAiSeed: (v: string) => void
   setAiNum: (v: number) => void
 }
@@ -39,6 +41,7 @@ export const useEngineStore = create<EngineState>()(
       category: '',
       kwText: '',
       concurrency: 3,
+      headless: true,
       aiSeed: '',
       aiNum: 7,
 
@@ -51,6 +54,7 @@ export const useEngineStore = create<EngineState>()(
       setCategory: (category) => set({ category }),
       setKwText: (kwText) => set((state) => ({ kwText: typeof kwText === 'function' ? kwText(state.kwText) : kwText })),
       setConcurrency: (concurrency) => set({ concurrency }),
+      setHeadless: (headless) => set({ headless }),
       setAiSeed: (aiSeed) => set({ aiSeed }),
       setAiNum: (aiNum) => set({ aiNum }),
     }),
