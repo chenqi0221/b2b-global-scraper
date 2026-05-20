@@ -67,18 +67,20 @@ def _local_aggregate(
         if dedup_cols:
             combined = combined.drop_duplicates(subset=dedup_cols, keep="last")
         deduped_count = len(combined)
+        new_count = deduped_count - len(existing_df)
         update_gui_callback(
-            f"本地汇总完成: 合并 {original_count} 条 -> 去重后 {deduped_count} 条 (新增 {deduped_count - len(existing_df)} 条)"
+            f"本地汇总完成: 合并 {original_count} 条 -> 去重后 {deduped_count} 条 (新增 {new_count} 条)"
         )
 
+        # 计算真正新增的记录：用去重后的总表减去已有数据
         if dedup_cols:
-            new_records = pd.merge(
-                new_data, existing_df,
+            merged = pd.merge(
+                combined, existing_df,
                 on=dedup_cols, how="left", indicator=True
             )
-            new_records = new_records[new_records["_merge"] == "left_only"].drop("_merge", axis=1)
+            new_records = merged[merged["_merge"] == "left_only"].drop("_merge", axis=1)
         else:
-            new_records = new_data.copy()
+            new_records = combined.iloc[len(existing_df):].copy()
     else:
         combined = new_data.copy()
         if dedup_cols:
