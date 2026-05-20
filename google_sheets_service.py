@@ -1,6 +1,62 @@
 import logging
+import os
+import sys
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _get_app_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent
+
+
+def _load_google_creds(scopes):
+    """加载 Google 凭证：优先 OAuth token.json，其次 Service Account google_credentials.json。"""
+    root = _get_app_dir()
+
+    # 1. 尝试 OAuth token.json（用户授权方式）
+    token_path = root / "token.json"
+    if token_path.exists():
+        from google.oauth2.credentials import Credentials as OAuthCredentials
+        creds = OAuthCredentials.from_authorized_user_file(str(token_path), scopes)
+        if creds.valid:
+            return creds, "oauth"
+        if creds.refresh_token:
+            from google.auth.transport.requests import Request
+            import requests
+            from config import HTTP_PROXY
+            session = requests.Session()
+            if HTTP_PROXY:
+                session.proxies = {"http": HTTP_PROXY, "https": HTTP_PROXY}
+            google_request = Request(session=session)
+            try:
+                creds.refresh(google_request)
+                with open(token_path, "w", encoding="utf-8") as f:
+                    f.write(creds.to_json())
+                return creds, "oauth"
+            except Exception:
+                pass
+
+    # 2. 尝试 Service Account（服务账号方式）
+    sa_candidates = [
+        root / "google_credentials.json",
+        Path.home() / ".config" / "google" / "credentials.json",
+        Path.home() / "google_credentials.json",
+    ]
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        sa_candidates.insert(0, Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]))
+
+    for p in sa_candidates:
+        if p.exists():
+            from google.oauth2.service_account import Credentials as SACredentials
+            return SACredentials.from_service_account_file(str(p), scopes=scopes), "service_account"
+
+    raise FileNotFoundError(
+        "未找到 Google 凭证。请完成 OAuth 授权（生成 token.json）"
+        "或放置 google_credentials.json（Service Account）到项目目录。"
+    )
 
 
 async def upload_to_google_sheets(
@@ -18,36 +74,14 @@ async def upload_to_google_sheets(
     update_gui_callback("尝试连接 Google Sheets ...")
     try:
         import gspread
-        from google.oauth2.service_account import Credentials
-        import os
-        import json
-        from pathlib import Path
-
-        key_path = None
-        candidates = [
-            Path("google_credentials.json"),
-            Path.home() / ".config" / "google" / "credentials.json",
-            Path.home() / "google_credentials.json",
-        ]
-        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-            candidates.insert(0, Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]))
-
-        for p in candidates:
-            if p.exists():
-                key_path = p
-                break
-
-        if key_path is None:
-            raise FileNotFoundError("未找到 Google 凭证文件，请配置后重试")
-
-        update_gui_callback(f"已找到凭证: {key_path.name}")
 
         scope = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
-        creds = Credentials.from_service_account_file(str(key_path), scopes=scope)
+        creds, cred_type = _load_google_creds(scope)
         gc = gspread.authorize(creds)
+        update_gui_callback(f"已使用 {cred_type} 凭证授权")
 
         try:
             sheet = gc.open(title)
