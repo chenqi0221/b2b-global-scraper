@@ -641,7 +641,7 @@ class ScraperController:
                         try:
                             found, email = await _safe_scrape_with_retry(
                                 p, task_info, self.output_dir,
-                                _as_status_reporter(self._status_callback), self.stop_event,
+                                as_status_reporter(self._status_callback), self.stop_event,
                                 headless=headless,
                                 on_progress=on_kw_progress,
                                 controller=self,
