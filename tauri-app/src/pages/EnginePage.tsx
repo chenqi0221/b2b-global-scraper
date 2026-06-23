@@ -85,12 +85,14 @@ export default function EnginePage() {
     }
   }, [])
 
+  const pollIntervalMs = useScraperStore((s) => s.pollIntervalMs)
+
   useEffect(() => {
-    const id = window.setInterval(() => void fetchStatus(), 2000)
+    const id = window.setInterval(() => void fetchStatus(), pollIntervalMs)
     void fetchStatus()
     void fetchProjectRoot()
     return () => window.clearInterval(id)
-  }, [fetchStatus, fetchProjectRoot])
+  }, [fetchStatus, fetchProjectRoot, pollIntervalMs])
 
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/api/logs/stream`)

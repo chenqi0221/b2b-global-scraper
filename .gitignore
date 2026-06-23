@@ -44,14 +44,31 @@ third_party/whatsapp-service/.wwebjs_cache*/
 # Portable builds
 B2B-Global-Portable/
 portable/
+build_portable/
 
 # PyInstaller packaging env
 fresh_pack/
+venv/
+venv_build/
+.venv/
 
 # Test scripts and data
 test_doubao*.py
 test_import.csv
 lengdangb2b_total.csv
+
+# Debug / temp artifacts
+debug*.py
+debug*.txt
+debug*.json
+*.tmp
+
+# Node / Rust build artifacts
+node_modules/
+target/
+
+# User-generated config/data
+keywords.json
 
 # Tauri bundled binaries (contains Python runtime, torch, etc.)
 tauri-app/src-tauri/binaries/

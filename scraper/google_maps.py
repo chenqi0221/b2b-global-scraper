@@ -8,42 +8,58 @@ from urllib.parse import quote
 
 from scraper.email_extractor import find_emails_on_website
 from scraper.file_export import export_results_csv_xlsx
+from utils.reporter import as_status_reporter
 
 logger = logging.getLogger(__name__)
 
 
 async def smart_scroll(page: Page, stop_event: asyncio.Event, update_gui_callback=None):
     """模拟真人随机滚动，防止被识别，并确保加载更多结果"""
+    status_cb = as_status_reporter(update_gui_callback)
     scrollable_div = 'div[role="feed"]'
     try:
         # 等待滚动区域出现，增加超时时间
         await page.wait_for_selector(scrollable_div, timeout=15000)
-        
+
         # 使用locator替代query_selector
         feed_locator = page.locator(scrollable_div)
-        
+
         # 确保滚动区域可见
         await feed_locator.wait_for(state="visible", timeout=10000)
-        
-        if update_gui_callback:
-            update_gui_callback("开始自动下滑加载更多结果...")
-        
+
+        status_cb("开始自动下滑加载更多结果...")
+
+        # 页面异常早停：未加载出商家卡片或被 Google 拦截时，不要无意义滚动
+        article_count = await page.locator('div[role="article"]').count()
+        if article_count == 0:
+            body_text = ""
+            try:
+                body_text = await page.evaluate("() => document.body.innerText.substring(0, 500)")
+            except Exception:
+                pass
+            if any(x in body_text for x in ["unusual traffic", "captcha", "CAPTCHA", "验证", "Verify", "机器人"]):
+                status_cb("[警告] 页面疑似被 Google 拦截，停止滚动以避免额外请求。", "warning")
+                return
+            # 也可能是真无结果，直接返回
+            status_cb("[提示] 当前关键词未加载出商家卡片，跳过滚动。")
+            return
+
         # 获取初始高度
         last_height = await page.evaluate(f"document.querySelector('{scrollable_div}').scrollHeight")
         no_change_count = 0
         max_no_change = 5
         total_scrolls = 0
-        max_scrolls = 50  # 增加最大滚动次数，确保加载更多结果
-        
-        if update_gui_callback:
-            update_gui_callback(f"初始页面高度: {last_height}px，开始滚动加载...")
-        
+        # 动态限制最大滚动次数，避免被拦截页面无意义滚到硬上限
+        max_scrolls = min(50, max(5, article_count // 5 + 5))
+
+        status_cb(f"初始页面高度: {last_height}px，开始滚动加载...")
+
         while not stop_event.is_set() and no_change_count < max_no_change and total_scrolls < max_scrolls:
             total_scrolls += 1
-            
+
             # 随机滚动距离，更接近真人行为
             scroll_dist = random.randint(800, 2000)
-            
+
             # 尝试多种滚动方式
             try:
                 # 先尝试直接滚动到页面底部附近
@@ -58,16 +74,16 @@ async def smart_scroll(page: Page, stop_event: asyncio.Event, update_gui_callbac
                     await page.mouse.wheel(0, scroll_dist)
                 except Exception:
                     await page.evaluate(f"document.querySelector('{scrollable_div}').scrollBy(0, {scroll_dist})")
-            
+
             # 增加等待时间，确保内容加载
             await asyncio.sleep(random.uniform(2, 4))
-            
+
             # 再次获取高度
             new_height = await page.evaluate(f"document.querySelector('{scrollable_div}').scrollHeight")
-            
-            if update_gui_callback and total_scrolls % 5 == 0:
-                update_gui_callback(f"已滚动 {total_scrolls} 次，当前高度: {new_height}px")
-            
+
+            if total_scrolls % 5 == 0:
+                status_cb(f"已滚动 {total_scrolls} 次，当前高度: {new_height}px")
+
             if new_height == last_height:
                 no_change_count += 1
                 # 尝试小幅度滚动，可能触发加载
@@ -76,17 +92,15 @@ async def smart_scroll(page: Page, stop_event: asyncio.Event, update_gui_callbac
             else:
                 no_change_count = 0
                 last_height = new_height
-                
+
                 # 随机暂停，更接近真人行为
                 await asyncio.sleep(random.uniform(0.5, 1.5))
-        
-        if update_gui_callback:
-            update_gui_callback(f"滚动完成，共滚动 {total_scrolls} 次，最终高度: {last_height}px")
+
+        status_cb(f"滚动完成，共滚动 {total_scrolls} 次，最终高度: {last_height}px")
                 
     except Exception as e:
         logger.error(f"滚动加载失败: {str(e)}")
-        if update_gui_callback:
-            update_gui_callback(f"滚动加载出现问题: {str(e)}")
+        status_cb(f"滚动加载出现问题: {str(e)}", "error")
 
 
 async def _dismiss_google_consent(page: Page) -> bool:
@@ -137,12 +151,41 @@ async def _capture_page_diagnostic(page: Page, keyword: str, output_dir: str) ->
     )
 
 
+ADDRESS_SELECTORS = [
+    'button[data-item-id="address"]',
+    'button[data-tooltip="复制地址"]',
+    '[data-item-id*="address"]',
+]
+WEBSITE_SELECTORS = [
+    'a[data-item-id="authority"]',
+    'a[data-item-id="olympic-website"]',
+    '[data-item-id*="authority"]',
+]
+PHONE_SELECTORS = [
+    'button[data-item-id^="phone:tel:"]',
+    'button[data-tooltip="拨打电话"]',
+    '[data-item-id*="phone"]',
+]
+
+
+async def _first_locator_attribute(page: Page, selectors: list[str], attribute: str) -> str:
+    """依次尝试选择器，返回第一个非空属性值。"""
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            if await locator.count() > 0:
+                value = await locator.first.get_attribute(attribute)
+                if value:
+                    return value
+        except Exception:
+            continue
+    return ""
+
+
 async def extract_details(page: Page):
-    """从详情面板提取商家详细信息"""
+    """从详情面板提取商家详细信息（带选择器降级）"""
     data = {"Rating": "", "Reviews": "", "Address": "", "Website": "", "Phone": ""}
     try:
-        # 使用 locator 替代 query_selector，更稳定
-        
         # 提取评分和评论数
         try:
             rating_locator = page.locator('span[role="img"]')
@@ -156,34 +199,17 @@ async def extract_details(page: Page):
                         data["Reviews"] = parts[1].replace("reviews", "").replace("review", "").strip()
         except Exception as rating_error:
             logger.debug(f"提取评分时出错: {str(rating_error)}")
-        
-        # 提取地址
-        try:
-            address_locator = page.locator('button[data-item-id="address"]')
-            if await address_locator.count() > 0:
-                data["Address"] = await address_locator.first.get_attribute('aria-label')
-                if data["Address"]:
-                    data["Address"] = data["Address"].replace("Address: ", "")
-        except Exception as address_error:
-            logger.debug(f"提取地址时出错: {str(address_error)}")
-        
-        # 提取网站
-        try:
-            website_locator = page.locator('a[data-item-id="authority"]')
-            if await website_locator.count() > 0:
-                data["Website"] = await website_locator.first.get_attribute('href')
-        except Exception as website_error:
-            logger.debug(f"提取网站时出错: {str(website_error)}")
-        
-        # 提取电话
-        try:
-            phone_locator = page.locator('button[data-item-id^="phone:tel:"]')
-            if await phone_locator.count() > 0:
-                data["Phone"] = await phone_locator.first.get_attribute('aria-label')
-                if data["Phone"]:
-                    data["Phone"] = data["Phone"].replace("Phone: ", "")
-        except Exception as phone_error:
-            logger.debug(f"提取电话时出错: {str(phone_error)}")
+
+        # 提取地址、网站、电话，使用多选择器降级
+        address = await _first_locator_attribute(page, ADDRESS_SELECTORS, 'aria-label')
+        if address:
+            data["Address"] = address.replace("Address: ", "")
+
+        data["Website"] = await _first_locator_attribute(page, WEBSITE_SELECTORS, 'href')
+
+        phone = await _first_locator_attribute(page, PHONE_SELECTORS, 'aria-label')
+        if phone:
+            data["Phone"] = phone.replace("Phone: ", "")
     except Exception as e:
         logger.debug(f"详情提取部分失败: {str(e)}")
     return data
@@ -193,10 +219,13 @@ async def scrape_google_maps(
     browser,
     task_info,
     output_dir,
-    update_gui_callback,
-    stop_event: asyncio.Event,
+    update_gui_callback=None,
+    stop_event: asyncio.Event = None,
     on_progress=None,
 ):
+    status_cb = as_status_reporter(update_gui_callback)
+    if stop_event is None:
+        stop_event = asyncio.Event()
     keyword = task_info["keyword"]
     location = f"{task_info['district']}, {task_info['city']}, {task_info['country']}"
     search_query = f"{keyword} in {location}"
@@ -316,7 +345,9 @@ async def scrape_google_maps(
                         try:
                             update_gui_callback(f"正在尝试从官网获取邮箱: `{detail_data['Website']}`")
                             detail_data["Email"] = await find_emails_on_website(
-                                detail_data["Website"], update_gui_callback
+                                detail_data["Website"],
+                                update_gui_callback,
+                                max_pages_per_site=2,
                             )
                         except Exception as email_error:
                             logger.debug(f"获取邮箱时出错: {str(email_error)}")

@@ -34,14 +34,17 @@ os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(_browsers_path))
 # ===================================================================
 
 import asyncio
-import threading
 import logging
 import subprocess
+import threading
 from datetime import datetime
 from typing import Callable, List, Optional
 from playwright.async_api import async_playwright, Browser
 
+from utils.reporter import as_status_reporter
+
 from scraper.google_maps import scrape_google_maps
+from scraper.email_extractor import reset_email_extractor_state
 from services.sheet_aggregator import aggregate_and_sync
 from config import HTTP_PROXY
 
@@ -195,6 +198,50 @@ def _find_chrome_executable() -> Optional[str]:
     return None
 
 
+def _get_playwright_installed_chromium_path() -> Optional[str]:
+    """查找 Playwright `playwright install chromium` 安装的 Chromium 路径。"""
+    search_roots = []
+    local_appdata = os.environ.get("LOCALAPPDATA", "")
+    if local_appdata:
+        search_roots.append(Path(local_appdata) / "ms-playwright")
+    userprofile = os.environ.get("USERPROFILE", "")
+    if userprofile:
+        search_roots.append(Path(userprofile) / "AppData" / "Local" / "ms-playwright")
+
+    browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if browsers_path:
+        search_roots.append(Path(browsers_path))
+
+    for root in search_roots:
+        if not root.exists():
+            continue
+        for candidate in root.rglob("chrome.exe"):
+            if "chromium" in str(candidate).lower():
+                return str(candidate)
+    return None
+
+
+def _any_browser_available() -> tuple[bool, Optional[str]]:
+    """返回 (是否存在可用浏览器, 推荐策略名)。
+
+    预检目标：在完全无浏览器时直接失败，避免 Playwright 反复 launch 产生
+    子进程/代理请求风暴。
+    """
+    bundled = _get_bundled_chromium_path()
+    if bundled:
+        return True, "bundled-chromium"
+    chrome = _find_chrome_executable()
+    if chrome:
+        return True, "system-chrome-direct"
+    edge = _find_edge_executable()
+    if edge:
+        return True, "system-edge-direct"
+    pw_chromium = _get_playwright_installed_chromium_path()
+    if pw_chromium:
+        return True, "playwright-default"
+    return False, None
+
+
 def _check_visual_cpp_redist() -> bool:
     """检查是否安装了 Visual C++ Redistributable（Playwright 必需）"""
     try:
@@ -262,6 +309,25 @@ async def _launch_browser(p, status_callback: Optional[Callable] = None, headles
     """
     proxy = {"server": HTTP_PROXY} if HTTP_PROXY else None
     chromium_args = _get_chromium_args()
+
+    # 预检：完全无浏览器时直接失败，避免后续所有 launch 尝试浪费资源/流量
+    browser_available, preferred_strategy = _any_browser_available()
+    if not browser_available:
+        error_detail = (
+            "无法找到任何可用浏览器。\n"
+            "已检查：内嵌 Chromium、系统 Chrome、系统 Edge、Playwright 已安装 Chromium。\n\n"
+            "解决方案:\n"
+            "1. 安装 Google Chrome 或 Microsoft Edge\n"
+            "2. 运行: python -m playwright install chromium\n"
+            "3. 使用包含便携 Chromium 的打包版本"
+        )
+        logger.error(error_detail)
+        if status_callback:
+            status_callback(error_detail, "error")
+        raise RuntimeError(error_detail)
+
+    if status_callback:
+        status_callback(f"[诊断] 预检可用浏览器策略: {preferred_strategy}", "info")
 
     has_vcredist = _check_visual_cpp_redist()
     if not has_vcredist:
@@ -338,10 +404,13 @@ async def _launch_browser(p, status_callback: Optional[Callable] = None, headles
             args=chromium_args + headless_new_args,
         )))
 
-    # 策略 6: Playwright 默认（使用 playwight install 安装的浏览器）
-    strategies.append(("playwright-default", dict(
-        headless=headless, proxy=proxy, args=chromium_args + headless_new_args,
-    )))
+    # 策略 6: Playwright install 安装的 Chromium（显式 executable_path，避免隐式查找）
+    pw_chromium = _get_playwright_installed_chromium_path()
+    if pw_chromium:
+        strategies.append(("playwright-default", dict(
+            executable_path=pw_chromium,
+            headless=headless, proxy=proxy, args=chromium_args + headless_new_args,
+        )))
 
     if status_callback:
         strategy_names = [name for name, _ in strategies]
@@ -385,13 +454,28 @@ async def _launch_browser(p, status_callback: Optional[Callable] = None, headles
 
 
 async def _safe_scrape_with_retry(
-    p, task_info, output_dir, status_callback, stop_event, max_retries=2, headless=True, on_progress=None
+    p, task_info, output_dir, status_callback, stop_event, max_retries=2, headless=True, on_progress=None, controller=None
 ):
-    """带错误重试的抓取，遇到 Connection closed 时重启浏览器"""
+    """带错误重试的抓取，遇到 Connection closed 时重启浏览器。
+
+    controller 用于任务级熔断：当浏览器连续启动失败时，后续关键词直接跳过，
+    避免产生大量无意义的启动请求/流量。
+    """
     for attempt in range(max_retries + 1):
         browser = None
         try:
+            if controller is not None and controller._browser_available is False:
+                status_callback(
+                    f"[跳过] '{task_info['keyword']}'：前置检测到无可用浏览器",
+                    "warning",
+                )
+                return 0, 0
+
             browser = await _launch_browser(p, status_callback, headless=headless)
+            if controller is not None:
+                controller._browser_available = True
+                controller._browser_fail_count = 0
+
             result = await scrape_google_maps(
                 browser, task_info, output_dir, status_callback, stop_event,
                 on_progress=on_progress,
@@ -399,6 +483,17 @@ async def _safe_scrape_with_retry(
             return result
         except Exception as e:
             error_msg = str(e)
+            if controller is not None:
+                controller._browser_fail_count += 1
+                if controller._browser_fail_count >= controller._browser_fail_threshold:
+                    controller._browser_available = False
+                    status_callback(
+                        "[错误] 连续多次无法启动浏览器，已停止后续关键词以避免流量/资源浪费。",
+                        "error",
+                    )
+                    logger.error(f"Browser launch failed {controller._browser_fail_count} times; aborting task")
+                    return 0, 0
+
             if "Connection closed" in error_msg or "Target page, context or browser has been closed" in error_msg:
                 if attempt < max_retries:
                     status_callback(
@@ -441,6 +536,11 @@ class ScraperController:
         self.synced_count = 0
         self.output_dir = None
 
+        # 浏览器启动熔断状态
+        self._browser_available: Optional[bool] = None
+        self._browser_fail_count = 0
+        self._browser_fail_threshold = 2
+
     def start_scraping(
         self,
         keywords: List[str],
@@ -475,6 +575,9 @@ class ScraperController:
         downloads_root = _get_app_dir() / "Downloads"
         self.output_dir = str(downloads_root / session_folder_name)
         os.makedirs(self.output_dir, exist_ok=True)
+
+        # 每次新任务重置邮箱提取器熔断状态
+        reset_email_extractor_state(max_requests_per_run=max(100, len(keywords) * 10))
 
         if self.on_status_update:
             self.on_status_update(f"本次任务文件将保存至: {self.output_dir}", "info")
@@ -538,9 +641,10 @@ class ScraperController:
                         try:
                             found, email = await _safe_scrape_with_retry(
                                 p, task_info, self.output_dir,
-                                self._status_callback, self.stop_event,
+                                _as_status_reporter(self._status_callback), self.stop_event,
                                 headless=headless,
-                                on_progress=on_kw_progress
+                                on_progress=on_kw_progress,
+                                controller=self,
                             )
 
                             self.total_found += found

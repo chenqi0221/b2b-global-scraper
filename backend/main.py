@@ -6,6 +6,7 @@ FastAPI 入口：开发时从项目根目录执行
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -91,11 +92,22 @@ app = FastAPI(
     ),
 )
 
+allowed_origins = [
+    "http://localhost:1420",      # Tauri dev
+    "http://localhost:3000",      # Vite dev
+    "http://127.0.0.1:1420",      # Tauri dev (IP)
+    "http://127.0.0.1:3000",      # Vite dev (IP)
+    "tauri://localhost",          # Tauri production
+]
+
+if os.environ.get("B2B_CORS_ORIGIN"):
+    allowed_origins.append(os.environ.get("B2B_CORS_ORIGIN"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
