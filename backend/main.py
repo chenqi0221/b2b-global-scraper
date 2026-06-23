@@ -95,8 +95,10 @@ app = FastAPI(
 allowed_origins = [
     "http://localhost:1420",      # Tauri dev
     "http://localhost:3000",      # Vite dev
+    "http://localhost:5173",      # Vite default dev
     "http://127.0.0.1:1420",      # Tauri dev (IP)
     "http://127.0.0.1:3000",      # Vite dev (IP)
+    "http://127.0.0.1:5173",      # Vite default dev (IP)
     "tauri://localhost",          # Tauri production
 ]
 
