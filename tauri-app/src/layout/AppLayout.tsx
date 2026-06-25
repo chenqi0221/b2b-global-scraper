@@ -12,7 +12,6 @@ const nav = [
   { to: '/preview', label: '数据预览', icon: '📄' },
   { to: '/strategy', label: 'AI 策略', icon: '🤖' },
   { to: '/settings', label: '同步设置', icon: '☁️' },
-  { to: '/whatsapp', label: 'WhatsApp', icon: '💬' },
 ]
 
 export default function AppLayout() {

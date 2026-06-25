@@ -1,6 +1,6 @@
 # B2B Global 获客系统（Tauri + React）
 
-基于 Tauri v2 + React 19 + TypeScript 的桌面端获客系统前端壳层，配套 Python FastAPI 后端提供 Google Maps 商家数据采集、AI 关键词生成、Google Sheets 同步、WhatsApp 消息服务。
+基于 Tauri v2 + React 19 + TypeScript 的桌面端获客系统前端壳层，配套 Python FastAPI 后端提供 Google Maps 商家数据采集、AI 关键词生成、Google Sheets 同步。
 
 ---
 
@@ -34,7 +34,7 @@ tauri-app/
 │   ├── config/
 │   │   └── api.ts              # API 基址配置
 │   ├── lib/
-│   │   └── tauriBridge.ts      # Tauri 命令桥接 (文件选择、路径Reveal、WhatsApp进程)
+│   │   └── tauriBridge.ts      # Tauri 命令桥接 (文件选择、路径Reveal、后端健康检查)
 │   ├── types/
 │   │   └── api.ts              # 前后端共享类型定义
 │   ├── stores/
@@ -51,7 +51,6 @@ tauri-app/
 │       ├── DataPreviewPage.tsx # 数据预览 (CSV 预览、会话选择)
 │       ├── AiStrategyPage.tsx  # AI 策略 (提示词模板编辑)
 │       ├── SyncSettingsPage.tsx# 同步设置 (Google OAuth、代理、API Key)
-│       ├── WhatsappPage.tsx    # WhatsApp (iframe 嵌入、Node 进程控制)
 │       └── FormPage.css        # 表单页面通用样式
 ├── src-tauri/
 │   ├── src/
@@ -128,12 +127,6 @@ npm run package
 - Google OAuth 授权流程 (需 `client_secret.json`)
 - Token 刷新
 
-### 5. WhatsApp (`/whatsapp`)
-- 嵌入 WhatsApp Web UI (iframe)
-- Node 子进程启动/停止 (Tauri 桌面版)
-- 上游状态轮询
-- CSV 电话号码预览联动
-
 ---
 
 ## Tauri Rust 后端职责
@@ -143,7 +136,6 @@ npm run package
 - **文件对话框**：`tauri-plugin-dialog`
 - **窗口状态记忆**：`tauri-plugin-window-state`
 - **系统命令**：`reveal_path` (在资源管理器中打开文件/目录)
-- **WhatsApp 进程管理**：`whatsapp_service_start/stop`
 
 ---
 

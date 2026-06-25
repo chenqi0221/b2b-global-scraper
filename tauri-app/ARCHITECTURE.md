@@ -16,17 +16,17 @@
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                  │
 │  │ 子进程管理    │    │ 状态管理     │    │  数据采集     │                  │
 │  │ · Python后端  │    │ Zustand      │    │ · Google Maps│                  │
-│  │ · WhatsApp   │    │              │    │ · 邮箱提取    │                  │
-│  │   Node服务   │    │              │    │ · CSV导出     │                  │
+│  │              │    │              │    │ · 邮箱提取    │                  │
+│  │              │    │              │    │ · CSV导出     │                  │
 │  └──────────────┘    └──────────────┘    └──────────────┘                  │
 │                                                   │                         │
 │                              ┌────────────────────┼────────────────────┐   │
-│                              ▼                    ▼                    ▼   │
-│                        ┌──────────┐        ┌──────────┐        ┌──────────┐│
-│                        │ Google   │        │  豆包AI  │        │ WhatsApp ││
-│                        │ Sheets   │        │  Gemini  │        │  Node    ││
-│                        │ (OAuth2) │        │  关键词  │        │  web.js  ││
-│                        └──────────┘        └──────────┘        └──────────┘│
+│                              ▼                    ▼                       │
+│                        ┌──────────┐        ┌──────────┐                   │
+│                        │ Google   │        │  豆包AI  │                   │
+│                        │ Sheets   │        │  Gemini  │                   │
+│                        │ (OAuth2) │        │  关键词  │                   │
+│                        └──────────┘        └──────────┘                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,7 +40,7 @@
 |------|------|
 | `lib.rs` | Tauri Builder 配置、命令注册、setup 钩子 |
 | `main.rs` | 程序入口 (`windows_subsystem`) |
-| 子进程管理 | 自动启动/停止 Python 后端、WhatsApp Node 服务 |
+| 子进程管理 | 自动启动/停止 Python 后端 |
 | 单实例 | `tauri-plugin-single-instance` 防止多开 |
 | 文件对话框 | `tauri-plugin-dialog` (CSV/目录选择) |
 | 窗口状态 | `tauri-plugin-window-state` 记忆窗口大小位置 |
@@ -69,7 +69,6 @@
 - `/api/sync/*` — 同步 (单文件、汇总目录)
 - `/api/config/*` — 环境配置读写
 - `/api/google/oauth/*` — Google OAuth 授权
-- `/api/whatsapp/*` — WhatsApp 服务代理
 - `/api/logs/stream` — SSE 日志流
 
 ---
@@ -117,25 +116,6 @@
    返回 {ok: true} → UI alert 提示
 ```
 
-### 3.3 WhatsApp 流程
-
-```
-Tauri 桌面版
-        │
-        ▼
-┌───────────────┐     ┌───────────────┐
-│ WhatsappPage  │◄───►│  iframe       │
-│               │     │  localhost:3003│
-└───────────────┘     └───────────────┘
-        │
-   invoke whatsapp_service_start
-        │
-        ▼
-┌───────────────┐
-│  Rust lib.rs  │ ──spawn──► node third_party/whatsapp-service/web.js
-└───────────────┘
-```
-
 ---
 
 ## 4. 状态管理
@@ -157,7 +137,6 @@ interface State {
 各页面独立管理表单状态：
 - `EnginePage`: 关键词文本、地理位置级联、并发数、日志
 - `SyncSettingsPage`: 表单字段、OAuth 状态
-- `WhatsappPage`: CSV 路径、号码预览
 
 ---
 
@@ -170,7 +149,6 @@ interface State {
 | `/data` | DataPreviewPage | 数据预览 |
 | `/ai` | AiStrategyPage | AI 策略编辑 |
 | `/sync` | SyncSettingsPage | 同步设置 + OAuth |
-| `/whatsapp` | WhatsappPage | WhatsApp Web |
 
 使用 `HashRouter` 确保 Tauri 桌面环境路由正常。
 

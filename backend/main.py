@@ -31,7 +31,6 @@ from backend.routers import (
     scraper,
     sync,
     system,
-    whatsapp,
 )
 from backend.schemas.common import HealthResponse
 from backend.services.log_bus import log_bus
@@ -55,7 +54,6 @@ OPENAPI_TAGS = [
     {"name": "keywords", "description": "关键词库与 AI 生成"},
     {"name": "sync", "description": "Google Sheets 同步与汇总"},
     {"name": "config", "description": "应用配置（响应脱敏）"},
-    {"name": "whatsapp", "description": "WhatsApp Node 服务探测与代理"},
     {"name": "logs", "description": "运行日志（SSE）"},
     {"name": "meta", "description": "行业与地理静态数据"},
     {"name": "ai", "description": "AI 提示词模板"},
@@ -117,7 +115,6 @@ app.include_router(scraper.router, prefix="/api/scraper", tags=["scraper"])
 app.include_router(keywords.router, prefix="/api/keywords", tags=["keywords"])
 app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
-app.include_router(whatsapp.router, prefix="/api/whatsapp", tags=["whatsapp"])
 app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
 app.include_router(meta.router, prefix="/api/meta", tags=["meta"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])

@@ -42,7 +42,6 @@ PyInstaller 打包入口：作为 Tauri sidecar 运行，启动 uvicorn 服务�
         --hidden-import backend.routers.scraper \
         --hidden-import backend.routers.sync \
         --hidden-import backend.routers.system \
-        --hidden-import backend.routers.whatsapp \
         --hidden-import backend.schemas.common \
         --hidden-import backend.schemas.settings \
         --hidden-import backend.services.log_bus \

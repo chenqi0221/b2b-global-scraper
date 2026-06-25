@@ -34,9 +34,6 @@ user_ai_prompt.txt
 client_secret.json
 token.json
 
-# Vendored WhatsApp (session data must never be committed)
-third_party/whatsapp-service/.wwebjs_auth*/
-third_party/whatsapp-service/.wwebjs_cache*/
 
 # Environment files
 .env

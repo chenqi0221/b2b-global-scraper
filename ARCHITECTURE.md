@@ -11,14 +11,14 @@
 │  │      Tauri 桌面壳层 (Rust)    │                                          │
 │  │  ┌────────┐ ┌──────────────┐ │                                          │
 │  │  │ main.rs│ │   lib.rs      │ │  单实例 / 窗口状态 / 文件对话框            │
-│  │  └────────┘ └──────────────┘ │  Python 子进程管理 / WhatsApp 进程管理      │
+│  │  └────────┘ └──────────────┘ │  Python 子进程管理                         │
 │  └──────────────┬───────────────┘                                          │
 │                 │ HTTP / SSE                                               │
 │                 ▼                                                          │
 │  ┌──────────────────────────────┐                                          │
 │  │   React 19 前端 (Vite 8)     │                                          │
 │  │  ┌────────┐ ┌──────────────┐ │                                          │
-│  │  │ Pages  │ │  Components  │ │  Engine / Data / AI / Sync / WhatsApp    │
+│  │  │ Pages  │ │  Components  │ │  Engine / Data / AI / Sync               │
 │  │  │ Layout │ │   Modals     │ │                                          │
 │  │  └────────┘ └──────────────┘ │                                          │
 │  │  ┌────────┐ ┌──────────────┐ │                                          │
@@ -38,18 +38,18 @@
 │                 │                                                          │
 │  ┌──────────────┼──────────────┐                                          │
 │  ▼              ▼              ▼                                          │
-│  ┌────────┐  ┌────────┐  ┌────────┐                                      │
-│  │  Core  │  │Scraper │  │ThirdParty│                                    │
-│  │Services│  │Engine  │  │WhatsApp │                                    │
-│  │        │  │        │  │Node svc │                                    │
-│  └────────┘  └────────┘  └────────┘                                      │
+│  ┌────────┐  ┌────────┐                                                  │
+│  │  Core  │  │Scraper │                                                  │
+│  │Services│  │Engine  │                                                  │
+│  │        │  │        │                                                  │
+│  └────────┘  └────────┘                                                  │
 │                                                                             │
-│  ┌──────────────┬──────────────┬──────────────┬──────────────┐           │
-│  ▼              ▼              ▼              ▼              ▼           │
-│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐           │
-│  │Playwright│ │BeautifulSoup│ │Google Sheets│ │Gemini/  │  │WhatsApp │           │
-│  │Google Maps│ │Email Extract │ │OAuth2 API  │ │OpenAI   │  │web.js   │           │
-│  └────────┘  └────────┘  └────────┘  └────────┘  └────────┘           │
+│  ┌──────────────┬──────────────┬──────────────┐                         │
+│  ▼              ▼              ▼              ▼                         │
+│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐                         │
+│  │Playwright│ │BeautifulSoup│ │Google Sheets│ │Gemini/  │                         │
+│  │Google Maps│ │Email Extract │ │OAuth2 API  │ │OpenAI   │                         │
+│  └────────┘  └────────┘  └────────┘  └────────┘                         │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -74,13 +74,12 @@
 - 文件对话框（`tauri-plugin-dialog`）
 - 窗口状态记忆（`tauri-plugin-window-state`）
 - 系统命令：`reveal_path`（资源管理器中打开文件）
-- WhatsApp 进程管理：`whatsapp_service_start/stop`
 
 ### 2.2 React 前端 (`tauri-app/src/`)
 
 | 目录 | 职责 |
 |------|------|
-| `pages/` | 5 个核心页面：Engine / DataPreview / AiStrategy / SyncSettings / WhatsApp |
+| `pages/` | 4 个核心页面：Engine / DataPreview / AiStrategy / SyncSettings |
 | `layout/` | 侧边栏布局 + 响应式抽屉 |
 | `components/` | 可复用组件（关键词库弹窗） |
 | `stores/` | Zustand 全局状态（采集状态、项目根路径） |
@@ -113,7 +112,6 @@
 | `sync.py` | `/api/sync` | 同步（单文件、汇总目录） |
 | `config.py` | `/api/config` | 环境配置读写 |
 | `google_oauth.py` | `/api/google/oauth` | Google OAuth 授权流程 |
-| `whatsapp.py` | `/api/whatsapp` | WhatsApp 服务代理 |
 | `logs.py` | `/api/logs` | SSE 日志流 |
 | `system.py` | `/api/system` | 系统信息 |
 
@@ -194,25 +192,6 @@
         返回 {ok: true} → UI alert 提示
 ```
 
-### 3.3 WhatsApp 流程
-
-```
-Tauri 桌面版
-    │
-    ▼
-┌─────────────┐     ┌─────────────────┐
-│WhatsappPage │◄───►│ iframe          │
-│             │     │ localhost:3003  │
-└─────────────┘     └─────────────────┘
-    │
-    invoke whatsapp_service_start
-    │
-    ▼
-┌─────────────┐
-│  Rust lib.rs│ ──spawn──► node third_party/whatsapp-service/web.js
-└─────────────┘
-```
-
 ---
 
 ## 4. 状态管理
@@ -247,7 +226,6 @@ interface State {
 | `/data` | DataPreviewPage | 数据预览 |
 | `/ai` | AiStrategyPage | AI 策略编辑 |
 | `/sync` | SyncSettingsPage | 同步设置 + OAuth |
-| `/whatsapp` | WhatsappPage | WhatsApp Web |
 
 使用 `HashRouter` 确保 Tauri 桌面环境路由正常。
 

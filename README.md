@@ -1,6 +1,6 @@
 # B2B Global 获客系统
 
-基于 Google Maps 的 B2B 商家数据抓取工具，支持多地区、多关键词批量采集，自动提取官网邮箱，并可通过 Google Sheets 同步或 WhatsApp 群发触达客户。
+基于 Google Maps 的 B2B 商家数据抓取工具，支持多地区、多关键词批量采集，自动提取官网邮箱，并可通过 Google Sheets 同步触达客户。
 
 ---
 
@@ -27,10 +27,10 @@
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Python 业务核心层                         │
-│  ┌────────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐  │
-│  │ Playwright │ │ 邮箱提取    │ │ Google   │ │ WhatsApp │  │
-│  │ 地图抓取    │ │ 官网爬虫    │ │ Sheets   │ │ 消息群发  │  │
-│  └────────────┘ └────────────┘ └──────────┘ └──────────┘  │
+│  ┌────────────┐ ┌────────────┐ ┌──────────┐  │
+│  │ Playwright │ │ 邮箱提取    │ │ Google   │  │
+│  │ 地图抓取    │ │ 官网爬虫    │ │ Sheets   │  │
+│  └────────────┘ └────────────┘ └──────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,7 +47,6 @@
 | 抓取引擎 | Playwright + Stealth | - |
 | 数据导出 | Pandas + OpenPyXL | - |
 | AI 生成 | Google Gemini / OpenAI | - |
-| 消息群发 | whatsapp-web.js | - |
 
 ---
 
@@ -86,8 +85,7 @@
 │
 ├── models/                 # Pydantic 数据模型
 ├── utils/                  # 工具函数
-├── third_party/            # 第三方服务
-│   └── whatsapp-service/   # WhatsApp Node 服务
+├── third_party/            # 第三方服务（当前为空）
 │
 ├── tests/                  # 测试脚本
 ├── docs/                   # 文档
@@ -176,11 +174,6 @@ npm run package
 - 同步到 Google Sheets
 - 多表汇总合并
 
-### WhatsApp
-- 扫码登录 WhatsApp
-- 批量发送消息
-- 防检测模拟（打字间隔、随机消息）
-
 ---
 
 ## 环境变量
@@ -197,9 +190,6 @@ HTTP_PROXY=127.0.0.1:7890
 
 # 开发时指定仓库根目录（可选）
 B2B_REPO_ROOT=E:\google-maps-scraper
-
-# 自动启动 WhatsApp 服务（可选）
-B2B_SPAWN_WHATSAPP=1
 ```
 
 ---

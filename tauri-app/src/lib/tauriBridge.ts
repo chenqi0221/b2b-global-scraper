@@ -57,18 +57,6 @@ export async function revealPath(path: string): Promise<void> {
   await invoke('reveal_path', { path })
 }
 
-export async function whatsappServiceStart(): Promise<string> {
-  if (!isTauri()) {
-    return '请在 Tauri 桌面版中启动 Node 服务（或命令行运行 node web.js）'
-  }
-  return invoke<string>('whatsapp_service_start')
-}
-
-export async function whatsappServiceStop(): Promise<void> {
-  if (!isTauri()) return
-  await invoke('whatsapp_service_stop')
-}
-
 export async function checkBackendHealth(): Promise<'alive' | 'dead'> {
   if (!isTauri()) {
     try {

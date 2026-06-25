@@ -10,9 +10,6 @@ use tauri::Manager;
 /// 子进程中的 Python 后端（开发期 Python；生产期 PyInstaller sidecar exe）。release 模式优先尝试 bundle 里的 backend.exe。
 pub struct BackendChild(pub Mutex<Option<Child>>);
 
-/// WhatsApp Node
-pub struct WhatsappChild(pub Mutex<Option<Child>>);
-
 fn fallback_repo_root_from_manifest() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -240,69 +237,6 @@ fn spawn_python_backend(root: &Path) -> Option<Child> {
     None
 }
 
-fn try_spawn_whatsapp_child(root: &Path) -> Result<Child, String> {
-    let wa_dir = root.join("third_party").join("whatsapp-service");
-    let script = wa_dir.join("web.js");
-    let nm = wa_dir.join("node_modules");
-    if !script.is_file() {
-        return Err("缺少 third_party/whatsapp-service/web.js".into());
-    }
-    if !nm.is_dir() {
-        return Err("请在 third_party/whatsapp-service 目录执行 npm install".into());
-    }
-    let mut cmd = Command::new("node");
-    cmd.current_dir(&wa_dir)
-        .arg("web.js")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    cmd.spawn().map_err(|e| format!("启动 node 失败: {e}"))
-}
-
-/// 设置 `B2B_SPAWN_WHATSAPP=1` 且已 `npm install` 时，尝试 `node web.js`。
-fn maybe_spawn_whatsapp(root: &Path) -> Option<Child> {
-    let Ok(flag) = std::env::var("B2B_SPAWN_WHATSAPP") else {
-        return None;
-    };
-    if flag != "1" {
-        return None;
-    }
-    match try_spawn_whatsapp_child(root) {
-        Ok(ch) => {
-            log::info!("whatsapp node auto-spawn (B2B_SPAWN_WHATSAPP=1)");
-            Some(ch)
-        }
-        Err(e) => {
-            log::warn!("whatsapp auto-spawn skipped: {e}");
-            None
-        }
-    }
-}
-
-#[tauri::command]
-fn whatsapp_service_start(app: tauri::AppHandle) -> Result<String, String> {
-    let root = repo_root();
-    let st = app.state::<WhatsappChild>();
-    let mut slot = st.0.lock().map_err(|e| e.to_string())?;
-    if slot.is_some() {
-        return Ok("WhatsApp 服务已在运行".into());
-    }
-    let ch = try_spawn_whatsapp_child(&root)?;
-    log::info!("whatsapp node started by user command");
-    *slot = Some(ch);
-    Ok("已启动 WhatsApp Node（默认端口见服务配置）".into())
-}
-
-#[tauri::command]
-fn whatsapp_service_stop(app: tauri::AppHandle) -> Result<(), String> {
-    let st = app.state::<WhatsappChild>();
-    let mut slot = st.0.lock().map_err(|e| e.to_string())?;
-    if let Some(mut c) = slot.take() {
-        let _ = c.kill();
-        log::info!("whatsapp node stopped by user command");
-    }
-    Ok(())
-}
-
 #[tauri::command]
 fn check_backend_health() -> String {
     if TcpStream::connect("127.0.0.1:8756").is_ok() {
@@ -358,8 +292,6 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             reveal_path,
-            whatsapp_service_start,
-            whatsapp_service_stop,
             check_backend_health,
             restart_backend
         ])
@@ -382,23 +314,12 @@ pub fn run() {
             }
             app.manage(BackendChild(Mutex::new(py_child)));
 
-            let wa_child = maybe_spawn_whatsapp(&repo_root());
-            app.manage(WhatsappChild(Mutex::new(wa_child)));
-
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if matches!(event, tauri::RunEvent::Exit) {
-                if let Some(st) = app_handle.try_state::<WhatsappChild>() {
-                    if let Ok(mut g) = st.0.lock() {
-                        if let Some(mut c) = g.take() {
-                            let _ = c.kill();
-                            log::info!("whatsapp node stopped");
-                        }
-                    }
-                }
                 if let Some(st) = app_handle.try_state::<BackendChild>() {
                     if let Ok(mut g) = st.0.lock() {
                         if let Some(mut c) = g.take() {
